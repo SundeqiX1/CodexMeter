@@ -6,10 +6,17 @@ project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- Cross-platform Tauri 2 desktop application for macOS and Windows.
+- Windows system tray integration, launch at login, and Codex CLI discovery.
+- Shared React interface with a compact always-on-top quota dashboard.
+- macOS and Windows CI coverage for the Tauri frontend and Rust backend.
+
 ### Planned
 
 - Developer ID signing and Apple notarization for downloadable releases.
-- Universal 2 builds for Apple Silicon and Intel Macs.
+- Windows code signing and automated multi-platform release artifacts.
 
 ## [0.1.0] - 2026-07-17
 

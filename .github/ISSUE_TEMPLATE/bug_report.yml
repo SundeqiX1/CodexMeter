@@ -7,11 +7,21 @@ body:
       value: |
         Thanks for helping improve CodexQuotaWidget. Please remove account details, tokens, and other private data from logs before submitting.
 
-  - type: input
-    id: macos
+  - type: dropdown
+    id: operating-system
     attributes:
-      label: macOS version
-      placeholder: macOS 15.5
+      label: Operating system
+      options:
+        - macOS
+        - Windows
+    validations:
+      required: true
+
+  - type: input
+    id: os-version
+    attributes:
+      label: Operating system version
+      placeholder: macOS 15.5 or Windows 11 24H2
     validations:
       required: true
 
@@ -19,8 +29,8 @@ body:
     id: codex
     attributes:
       label: Codex or ChatGPT version
-      description: Include which desktop app you use and its version.
-      placeholder: Codex 1.x or ChatGPT 1.x
+      description: Include whether Codex comes from a desktop app, PATH, or WSL.
+      placeholder: Codex 1.x from PATH
     validations:
       required: true
 
