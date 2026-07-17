@@ -1,25 +1,27 @@
-# CodexQuotaWidget
+# Codex Quota Tool
 
-一个原生 macOS 菜单栏与桌面悬浮小组件，用于展示当前 Codex 账户的额度窗口、重置时间、积分余额和可用重置券。
+一个支持 macOS 与 Windows 的 Codex 桌面悬浮小组件，用于展示当前账户的额度窗口、重置时间、积分余额和可用重置券。
 
 > [!IMPORTANT]
 > 这是非官方社区项目，与 OpenAI 无隶属、合作或背书关系。它依赖实验性的 `codex app-server` 接口，该接口及返回结构可能随 Codex 更新而变化。
 
 ## 功能
 
-- 菜单栏持续显示当前最紧张额度窗口的剩余百分比
-- 可拖动、始终置顶并跨桌面显示的悬浮卡片
+- macOS 菜单栏显示剩余百分比，Windows 系统托盘提供显示、刷新和退出入口
+- 可拖动、始终置顶的紧凑悬浮卡片
 - 展示 5 小时、每周及服务端返回的其他额度窗口
 - 展示积分余额、个人月度额度及可用重置券
 - 每 5 分钟自动刷新，支持手动刷新和重新连接
-- 支持开机启动
+- macOS 与 Windows 均支持开机启动和关闭窗口后驻留托盘
 - 不读取、不复制、不保存 Codex 登录令牌
+
+跨平台桌面端位于 [`apps/desktop-tauri`](apps/desktop-tauri)，采用 Tauri 2、Rust 和 React。原有 SwiftUI 版仍保留在仓库根目录，供原生 macOS 维护和迁移对照。
 
 ## 工作方式与隐私
 
 ```mermaid
 flowchart LR
-    Widget["CodexQuotaWidget"] -->|"JSONL / stdio"| Server["本机 codex app-server"]
+    Widget["Codex Quota Tool"] -->|"JSONL / stdio"| Server["本机 codex app-server"]
     Server -->|"现有登录会话"| Service["OpenAI 服务"]
 ```
 
@@ -43,36 +45,70 @@ codex app-server --stdio
 
 ## 系统要求
 
-- macOS 14 或更高版本
-- 已安装 Codex 或 ChatGPT 桌面应用
+- macOS 13 或更高版本，或 Windows 10/11
+- 本机存在可运行的 `codex`：macOS 可来自 Codex/ChatGPT 桌面应用或 PATH；Windows 需将 Codex CLI 加入 PATH
 - 已在 Codex 中登录 ChatGPT 账户
-- 当前打包脚本默认构建 Apple Silicon（arm64）版本
+- Node.js 20+ 与 Rust stable（仅从源码构建时需要）
+
+可通过环境变量 `CODEX_BINARY` 指定 Codex 可执行文件。Windows 用户如只在 WSL 内安装了 Codex，可设置 `CODEX_USE_WSL=1` 启用显式 WSL 兜底；默认不会自动跨入 WSL。
 
 ## 使用构建好的应用
 
-1. 解压 `CodexQuotaWidget.zip`。
-2. 将 `CodexQuotaWidget.app` 拖入 Finder 侧边栏的“应用程序”。
+### macOS
+
+1. 解压 macOS 发布包。
+2. 将 `Codex Quota Tool.app` 拖入 Finder 侧边栏的“应用程序”。
 3. 在“应用程序”中右键该应用，选择“打开”，再在系统提示中选择“打开”。
-4. 应用没有 Dock 图标；启动成功后请查看屏幕右上角的菜单栏额度图标。
+4. 启动后可从屏幕右上角的菜单栏额度图标显示或隐藏窗口。
 
 建议先移动到“应用程序”文件夹，再启用“开机启动”，避免应用路径变化导致登录项失效。
 
-本地脚本生成的是 ad-hoc 签名构建。它适合自己的 Mac 测试，但不等同于经过 Apple Developer ID 签名和公证的公开发行版。给其他人分发前请阅读 [发布说明](docs/RELEASING.md)。
+### Windows
 
-## 从源码构建
+1. 下载发布页中的 `.msi` 或 NSIS `.exe` 安装包。
+2. 完成安装后，从开始菜单打开 **Codex Quota Tool**。
+3. 窗口关闭后应用仍驻留系统托盘；右键托盘图标可刷新或退出。
+
+公开分发的 macOS 构建应完成 Developer ID 签名和公证，Windows 构建应进行代码签名。详情见 [发布说明](docs/RELEASING.md)。
+
+## 构建跨平台桌面端
 
 ```bash
 git clone https://github.com/changzhengithub/codex-quota-tool.git
 cd codex-quota-tool
-./Scripts/build-app.sh
-open dist/CodexQuotaWidget.app
+cd apps/desktop-tauri
+npm ci
+npm run tauri build
 ```
 
-也可以直接用 Xcode 打开 `Package.swift`，然后运行 `CodexQuotaWidget` scheme。
+构建产物位于 `apps/desktop-tauri/src-tauri/target/release/bundle/`。Tauri 需要在目标操作系统上构建：在 macOS 生成 `.app`/`.dmg`，在 Windows 生成 `.msi`/`.exe`。
+
+macOS/Linux shell 也可以在仓库根目录运行：
+
+```bash
+./Scripts/build-desktop.sh
+```
+
+调试模式：
+
+```bash
+cd apps/desktop-tauri
+npm run tauri dev
+```
+
+原生 SwiftUI 版仍可通过 `./Scripts/build-app.sh` 构建，或用 Xcode 打开 `Package.swift`。
 
 ## 测试
 
-运行默认单元测试：
+运行跨平台端测试：
+
+```bash
+cd apps/desktop-tauri
+npm run build
+cargo test --manifest-path src-tauri/Cargo.toml
+```
+
+运行原生 Swift 版测试：
 
 ```bash
 swift test
@@ -86,11 +122,12 @@ LIVE_CODEX_TEST=1 swift test --filter CodexAppServerIntegrationTests
 
 ## 故障排查
 
-- **打开后无反应**：应用没有 Dock 图标，请先查看菜单栏；也可打开“活动监视器”搜索 `CodexQuotaWidget`。
-- **显示“找不到 Codex”**：确认 `/Applications/ChatGPT.app` 或 `/Applications/Codex.app` 已安装。
+- **打开后无反应**：先查看 macOS 菜单栏或 Windows 系统托盘；也可在活动监视器/任务管理器中搜索应用。
+- **显示“找不到 Codex”**：macOS 请确认桌面应用已安装；Windows 请在终端运行 `codex --version`，确认 CLI 在 PATH 中。
 - **显示未登录或查询超时**：先打开 Codex 完成登录，再从菜单栏选择“重连”。
 - **需要自定义 Codex 路径**：从终端启动时设置 `CODEX_BINARY=/path/to/codex`。
-- **开机启动失败**：确认应用已经移动到 `/Applications`，再重新关闭并启用该选项。
+- **macOS 开机启动失败**：确认应用已经移动到 `/Applications`，再重新关闭并启用该选项。
+- **Windows 缺少 WebView**：安装或修复 Microsoft Edge WebView2 Runtime 后重试。
 - **朋友的 Mac 提示无法验证开发者**：公开分发应使用 Developer ID 签名和 Apple 公证，参见 [发布说明](docs/RELEASING.md)。
 
 ## 参与项目
