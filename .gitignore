@@ -1,0 +1,33 @@
+# Swift Package Manager
+.build/
+.swiftpm/xcode/xcuserdata/
+*.xcuserstate
+
+# Xcode
+DerivedData/
+*.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+
+# Packaged applications and release archives
+dist/
+*.app
+*.dmg
+*.pkg
+*.zip
+
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+*.p8
+*.p12
+*.key
+*.provisionprofile
+*.mobileprovision
+
+# macOS
+.DS_Store
+
+# Temporary files
+*.tmp
+*.log
