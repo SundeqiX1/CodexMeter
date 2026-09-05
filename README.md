@@ -1,10 +1,14 @@
 # CodexMeter
 
+[![CI](https://github.com/SundeqiX1/CodexMeter/actions/workflows/ci.yml/badge.svg)](https://github.com/SundeqiX1/CodexMeter/actions/workflows/ci.yml)
+
 CodexMeter is a small, private, cross-platform menu bar and system tray monitor for Codex quota. It uses the local Codex App Server, keeps quota snapshots in memory, and focuses on the two windows people need at a glance: 5 Hour and Weekly.
 
 > This is an independent community project and is not affiliated with or endorsed by OpenAI.
 
 > **Release status:** `0.1.0` is a preview release. The parser, reconnect behavior, frontend build, Rust tests, and native macOS arm64 packaging are verified. Windows and macOS Intel packages are produced by GitHub Actions and must pass installation smoke tests before the project is described as stable. Codex App Server is an experimental upstream interface and may change between Codex versions.
+
+There is no stable public download yet. Until the first tagged release is validated, use the CI artifacts for testing or build from source.
 
 [简体中文](README.zh-CN.md)
 
