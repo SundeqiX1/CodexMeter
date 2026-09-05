@@ -4,6 +4,8 @@ All notable changes are documented here. The project follows Semantic Versioning
 
 ## [Unreleased]
 
+## [0.1.0-preview.1] - 2026-09-06
+
 ### Added
 
 - CodexMeter identity and bilingual public documentation.
@@ -20,6 +22,7 @@ All notable changes are documented here. The project follows Semantic Versioning
 - Missing windows display `--` or can be hidden; no missing value is estimated.
 - Failed connections retain the last valid in-memory snapshot as stale data.
 - Removed the duplicate legacy Swift implementation so Tauri is the single maintained desktop codebase.
+- Updated the frontend build dependency lock to patched `browserslist`, `postcss`, and `nanoid` versions.
 
 ## Upstream history
 
