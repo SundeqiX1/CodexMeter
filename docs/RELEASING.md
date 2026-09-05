@@ -20,7 +20,14 @@ For public Windows downloads, configure a trusted Authenticode certificate or si
 
 ## Tag and publish
 
-Push a tag matching the synchronized version:
+For a preview, append a prerelease suffix to the synchronized application version:
+
+```bash
+git tag -a v0.1.0-preview.1 -m "CodexMeter v0.1.0 preview 1"
+git push origin v0.1.0-preview.1
+```
+
+The workflow accepts `v<version>-<prerelease>` and marks any hyphenated tag as a GitHub prerelease. After matching-hardware smoke tests, publish the stable tag without a suffix:
 
 ```bash
 git tag -a v0.1.0 -m "CodexMeter v0.1.0"
@@ -33,4 +40,4 @@ The release workflow builds Windows x64, macOS arm64, and macOS x64. It publishe
 - arm64 and x64 macOS DMG and ZIP;
 - per-target SHA-256 checksum files.
 
-Download every artifact from the draft/release, verify checksums, and install it on a clean matching platform before announcing the release.
+Download every artifact from the release, verify checksums, and install it on a clean matching platform before promoting a preview to stable.

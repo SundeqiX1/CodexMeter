@@ -60,7 +60,11 @@ jobs:
         shell: bash
         run: |
           version="$(node -p "require('./package.json').version")"
-          test "${GITHUB_REF_NAME}" = "v${version}"
+          base_tag="v${version}"
+          if [[ "${GITHUB_REF_NAME}" != "${base_tag}" && "${GITHUB_REF_NAME}" != "${base_tag}-"* ]]; then
+            echo "Tag ${GITHUB_REF_NAME} does not match ${base_tag} or a ${base_tag}-<prerelease> tag."
+            exit 1
+          fi
       - name: Build Tauri bundles
         shell: bash
         env:
@@ -142,4 +146,5 @@ jobs:
       - uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
+          prerelease: ${{ contains(github.ref_name, '-') }}
           files: release-assets/*

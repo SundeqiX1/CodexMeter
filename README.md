@@ -8,7 +8,7 @@ CodexMeter is a small, private, cross-platform menu bar and system tray monitor 
 
 > **Release status:** `0.1.0` is a preview release. The parser, reconnect behavior, frontend build, Rust tests, and native macOS arm64 packaging are verified. Windows and macOS Intel packages are produced by GitHub Actions and must pass installation smoke tests before the project is described as stable. Codex App Server is an experimental upstream interface and may change between Codex versions.
 
-There is no stable public download yet. Until the first tagged release is validated, use the CI artifacts for testing or build from source.
+Easy-to-find preview packages are available on the [GitHub Releases page](https://github.com/SundeqiX1/CodexMeter/releases). They are unsigned test builds, not a stable release; use the architecture-matched package and review the platform warning below.
 
 [简体中文](README.zh-CN.md)
 

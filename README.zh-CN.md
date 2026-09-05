@@ -8,7 +8,7 @@ CodexMeter 是面向 macOS 与 Windows 的轻量 Codex 额度状态工具。它�
 
 > **版本状态：** `0.1.0` 是预览版。额度解析、断线重试、前端构建、Rust 测试以及 macOS Apple Silicon 原生打包已经验证；Windows 与 macOS Intel 安装包由 GitHub Actions 生成，完成对应真机安装冒烟测试后再标记为稳定版。Codex App Server 目前仍是上游实验性接口，未来 Codex 版本可能调整协议。
 
-目前还没有经过验证的正式公开下载。首个带标签的 Release 发布前，请使用 CI 产物测试，或从源码构建。
+安装包已集中放在 [GitHub Releases 页面](https://github.com/SundeqiX1/CodexMeter/releases)，不再需要到 Actions 深层目录查找。当前提供的是未签名测试包，会明确标记为 Preview，并非稳定正式版；请按处理器架构选择对应文件，并阅读下方系统安全提示。
 
 ## 普通用户需要安装什么
 
