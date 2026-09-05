@@ -1,33 +1,26 @@
 # Changelog
 
-All notable changes to this project are documented in this file. The format is
-based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the
-project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+All notable changes are documented here. The project follows Semantic Versioning.
 
 ## [Unreleased]
 
 ### Added
 
-- Cross-platform Tauri 2 desktop application for macOS and Windows.
-- Windows system tray integration, launch at login, and Codex CLI discovery.
-- Shared React interface with a compact always-on-top quota dashboard.
-- macOS and Windows CI coverage for the Tauri frontend and Rust backend.
+- CodexMeter identity and bilingual public documentation.
+- Compact menu bar/tray usage panel and an optional non-focusable floating widget.
+- Configurable 30/60 second refresh and allowlisted local settings.
+- Windows x64, macOS arm64, and macOS x64 release workflows with portable archives and SHA-256 checksums.
+- Follow-system, English, and Simplified Chinese UI and tray-menu localization.
+- Root-level local artifact export with SHA-256 checksums.
 
-### Planned
+### Changed
 
-- Developer ID signing and Apple notarization for downloadable releases.
-- Windows code signing and automated multi-platform release artifacts.
+- Quota windows are selected by `windowDurationMins`, not `primary`/`secondary` position.
+- Both keyed-only `rateLimitsByLimitId.codex` and legacy `rateLimits` payloads are accepted.
+- Missing windows display `--` or can be hidden; no missing value is estimated.
+- Failed connections retain the last valid in-memory snapshot as stale data.
+- Removed the duplicate legacy Swift implementation so Tauri is the single maintained desktop codebase.
 
-## [0.1.0] - 2026-07-17
+## Upstream history
 
-### Added
-
-- Native macOS menu bar quota indicator.
-- Draggable always-on-top floating quota card.
-- Codex App Server JSONL client using the current local Codex login.
-- Quota windows, reset times, credit balance, spend controls, and reset credits.
-- Five-minute refresh, sparse-update refetching, reconnection, and launch at login.
-- Unit tests and an opt-in live integration test.
-
-[Unreleased]: https://github.com/changzhengithub/codex-quota-tool/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/changzhengithub/codex-quota-tool/releases/tag/v0.1.0
+CodexMeter derives from the MIT-licensed `changzhengithub/codex-quota-tool`. Earlier history remains available in Git, and the upstream copyright notice remains in `LICENSE`.

@@ -1,4 +1,4 @@
-export type ConnectionStatus = "disconnected" | "connecting" | "connected" | "failed";
+export type ConnectionStatus = "disconnected" | "connecting" | "connected" | "stale" | "failed";
 
 export interface ConnectionState {
   status: ConnectionStatus;
@@ -12,50 +12,37 @@ export interface RateLimitWindow {
   resetsAt?: number | null;
 }
 
-export interface CreditsSnapshot {
-  hasCredits: boolean;
-  unlimited: boolean;
-  balance?: string | null;
-}
-
-export interface SpendControlLimitSnapshot {
-  limit: string;
-  used: string;
-  remainingPercent: number;
-  resetsAt: number;
-}
-
 export interface RateLimitSnapshot {
-  limitId?: string | null;
-  limitName?: string | null;
   primary?: RateLimitWindow | null;
   secondary?: RateLimitWindow | null;
-  credits?: CreditsSnapshot | null;
-  individualLimit?: SpendControlLimitSnapshot | null;
-  spendControlReached?: boolean | null;
-  planType?: string | null;
-  rateLimitReachedType?: string | null;
-}
-
-export interface RateLimitResetCredit {
-  id: string;
-  resetType: string;
-  status: string;
-  grantedAt: number;
-  expiresAt?: number | null;
-  title?: string | null;
-  description?: string | null;
 }
 
 export interface RateLimitResetCreditsSummary {
   availableCount: number;
-  credits?: RateLimitResetCredit[] | null;
 }
 
 export interface RateLimitsEnvelope {
-  rateLimits: RateLimitSnapshot;
+  rateLimits?: RateLimitSnapshot | null;
   rateLimitsByLimitId?: Record<string, RateLimitSnapshot> | null;
   rateLimitResetCredits?: RateLimitResetCreditsSummary | null;
+}
+
+export interface SavedPosition {
+  x: number;
+  y: number;
+}
+
+export type AppLanguage = "system" | "en" | "zh-CN";
+export type ResolvedLanguage = Exclude<AppLanguage, "system">;
+
+export interface AppSettings {
+  language: AppLanguage;
+  refreshIntervalSecs: number;
+  compactMenuBar: boolean;
+  hideMissingWindows: boolean;
+  widgetVisible: boolean;
+  widgetPosition?: SavedPosition | null;
+  codexBinaryPath?: string | null;
 }
 
 export interface FrontendState {
@@ -63,4 +50,5 @@ export interface FrontendState {
   snapshot?: RateLimitsEnvelope | null;
   lastUpdated?: number | null;
   platform: string;
+  settings: AppSettings;
 }

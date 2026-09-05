@@ -1,3 +1,3 @@
 fn main() {
-    codex_quota_desktop_lib::run();
+    codexmeter_lib::run();
 }

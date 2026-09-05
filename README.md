@@ -1,141 +1,135 @@
-# Codex Quota Tool
+# CodexMeter
 
-一个支持 macOS 与 Windows 的 Codex 桌面悬浮小组件，用于展示当前账户的额度窗口、重置时间、积分余额和可用重置券。
+CodexMeter is a small, private, cross-platform menu bar and system tray monitor for Codex quota. It uses the local Codex App Server, keeps quota snapshots in memory, and focuses on the two windows people need at a glance: 5 Hour and Weekly.
 
-> [!IMPORTANT]
-> 这是非官方社区项目，与 OpenAI 无隶属、合作或背书关系。它依赖实验性的 `codex app-server` 接口，该接口及返回结构可能随 Codex 更新而变化。
+> This is an independent community project and is not affiliated with or endorsed by OpenAI.
 
-## 功能
+[简体中文](README.zh-CN.md)
 
-- macOS 菜单栏显示剩余百分比，Windows 系统托盘提供显示、刷新和退出入口
-- 可拖动、始终置顶的紧凑悬浮卡片
-- 展示 5 小时、每周及服务端返回的其他额度窗口
-- 展示积分余额、个人月度额度及可用重置券
-- 每 5 分钟自动刷新，支持手动刷新和重新连接
-- macOS 与 Windows 均支持开机启动和关闭窗口后驻留托盘
-- 不读取、不复制、不保存 Codex 登录令牌
+## Highlights
 
-跨平台桌面端位于 [`apps/desktop-tauri`](apps/desktop-tauri)，采用 Tauri 2、Rust 和 React。原有 SwiftUI 版仍保留在仓库根目录，供原生 macOS 维护和迁移对照。
+- macOS menu bar title such as `5h 76% · W 43%`, with an optional compact mode.
+- Windows 10/11 system tray with left-click access to the usage panel.
+- Optional draggable, always-on-top floating widget that does not take keyboard focus.
+- Follow-system, English, and Simplified Chinese UI, including the tray menu.
+- Native light/dark appearance, a compact layout, and no dashboard or Electron runtime.
+- Immediate refresh at startup, automatic refresh every 30 or 60 seconds, manual refresh, and reconnect support.
+- Last valid values remain visible as `Disconnected · Stale` during temporary failures.
+- No screenshots, OCR, browser cookies, copied tokens, quota history, or telemetry.
 
-## 工作方式与隐私
+## Data source
 
-```mermaid
-flowchart LR
-    Widget["Codex Quota Tool"] -->|"JSONL / stdio"| Server["本机 codex app-server"]
-    Server -->|"现有登录会话"| Service["OpenAI 服务"]
-```
+CodexMeter starts the official local process:
 
-小组件启动 Codex 自带的本地进程：
-
-```bash
+```text
 codex app-server --stdio
 ```
 
-完成 JSONL 初始化握手后，它调用只读方法：
+It completes the JSONL initialization handshake and calls the read-only JSON-RPC method:
 
 ```json
 {"method":"account/rateLimits/read","id":10}
 ```
 
-当收到 `account/rateLimits/updated` 通知时，小组件会重新读取完整快照。剩余百分比按 `100 - usedPercent` 计算；窗口名称依据 `windowDurationMins` 判断，不假定 `primary` 永远代表固定窗口。
+Both `rateLimitsByLimitId.codex` and the legacy `rateLimits` response are accepted. Windows are identified only by `windowDurationMins`:
 
-额度快照只保存在应用内存中。项目不包含独立的分析、遥测或第三方上报代码，也不自行保存账户令牌；由 `codex app-server` 使用你已经存在的 Codex 登录会话与 OpenAI 服务通信。
+| Duration | Display |
+| ---: | --- |
+| 300 minutes | 5 Hour |
+| 10,080 minutes | Weekly |
 
-协议依据可参考 OpenAI Codex 仓库中的 [App Server 文档](https://github.com/openai/codex/blob/main/codex-rs/app-server/README.md)。
+`primary` and `secondary` are not treated as fixed labels. If the server omits a window, CodexMeter shows `--` or hides it when that preference is enabled. It never estimates a missing quota window.
 
-## 系统要求
+This behavior is plan-agnostic. Plus, Pro 5x, Pro 20x, Business, and future plans use the same parser: CodexMeter displays only the windows returned for `codex`. A weekly-only Pro response therefore renders `5h -- · W …` by default, or only `W …` when **Hide windows not reported by the server** is enabled. Plan names and multipliers are never used to manufacture a limit. OpenAI's current plan documentation notes that Pro offers 5x or 20x usage and that weekly limits may also apply, while the actual windows available to an account remain server-controlled; see [OpenAI Codex pricing and usage limits](https://learn.chatgpt.com/docs/pricing).
 
-- macOS 13 或更高版本，或 Windows 10/11
-- 本机存在可运行的 `codex`：macOS 可来自 Codex/ChatGPT 桌面应用或 PATH；Windows 需将 Codex CLI 加入 PATH
-- 已在 Codex 中登录 ChatGPT 账户
-- Node.js 20+ 与 Rust stable（仅从源码构建时需要）
+## Supported targets
 
-可通过环境变量 `CODEX_BINARY` 指定 Codex 可执行文件。Windows 用户如只在 WSL 内安装了 Codex，可设置 `CODEX_USE_WSL=1` 启用显式 WSL 兜底；默认不会自动跨入 WSL。
+| Platform | Target | Packaging |
+| --- | --- | --- |
+| macOS 13+ | Apple Silicon (`aarch64`) | DMG and ZIP |
+| macOS 13+ | Intel (`x86_64`) | DMG and ZIP |
+| Windows 10/11 | x64 | NSIS setup EXE and portable ZIP |
 
-## 使用构建好的应用
+Public macOS releases should be Developer ID signed and notarized, and public Windows installers should be code signed. Unsigned development packages will trigger operating-system warnings.
+
+## Requirements
+
+- A working `codex` executable and an existing ChatGPT-managed Codex sign-in.
+- Node.js 20+ and Rust stable when building from source.
+- Microsoft C++ Build Tools and Microsoft Edge WebView2 on Windows (WebView2 is normally already installed on Windows 10/11).
+
+CodexMeter auto-detects the executable in `PATH` and the standard macOS ChatGPT/Codex application locations. A custom path can be selected in Settings. `CODEX_BINARY` remains available as an environment override; Windows users may explicitly opt into a WSL fallback with `CODEX_USE_WSL=1`.
+
+For official Codex installation and sign-in instructions, see the [Codex CLI documentation](https://learn.chatgpt.com/docs/codex/cli). Windows source builds also need the dependencies listed in the [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/).
+
+## Install and use
 
 ### macOS
 
-1. 解压 macOS 发布包。
-2. 将 `Codex Quota Tool.app` 拖入 Finder 侧边栏的“应用程序”。
-3. 在“应用程序”中右键该应用，选择“打开”，再在系统提示中选择“打开”。
-4. 启动后可从屏幕右上角的菜单栏额度图标显示或隐藏窗口。
+1. Open the architecture-matched DMG (`arm64` for Apple Silicon, `x64` for Intel), then drag CodexMeter to Applications. A development build can also be launched directly from `CodexMeter.app`.
+2. Start CodexMeter. If an unsigned preview is blocked, Control-click the app, choose **Open**, then confirm **Open**. Public releases should be signed and notarized.
+3. Click the `5h … · W …` title in the menu bar to open or hide the quota panel. CodexMeter runs as a menu-bar accessory and does not occupy the Dock.
+4. Turn on **Floating Widget** in the panel, choose it from the menu-bar context menu, or enable **Show floating widget** in Settings and save. The widget first appears in the center of the screen and remembers where you drag it.
+5. Open Settings and choose **Follow system**, **English**, or **Simplified Chinese**. The panel, widget, status labels, dates, and tray menu update together.
 
-建议先移动到“应用程序”文件夹，再启用“开机启动”，避免应用路径变化导致登录项失效。
+The `×` in the quota panel hides the panel. The `×` in the widget hides only the widget. Neither action quits CodexMeter; use **Quit CodexMeter** from the panel or menu-bar menu to stop the process.
 
-### Windows
+### Windows 10/11 x64
 
-1. 下载发布页中的 `.msi` 或 NSIS `.exe` 安装包。
-2. 完成安装后，从开始菜单打开 **Codex Quota Tool**。
-3. 窗口关闭后应用仍驻留系统托盘；右键托盘图标可刷新或退出。
+1. Run `CodexMeter-Windows-Setup-<version>-x64.exe`, or extract the portable ZIP and launch `CodexMeter.exe`.
+2. Make sure the native Windows `codex` command is available in `PATH`. If it is installed somewhere else, enter the full path to `codex.exe`, `codex.cmd`, or `codex.bat` in Settings.
+3. Find CodexMeter in the notification area; Windows may place it behind the hidden-icons arrow. Left-click the tray icon to open or hide the panel. Right-click it for **Show Widget**, **Refresh**, **Launch at Startup**, **Settings**, and **Quit CodexMeter**.
 
-公开分发的 macOS 构建应完成 Developer ID 签名和公证，Windows 构建应进行代码签名。详情见 [发布说明](docs/RELEASING.md)。
+The current checkout can produce macOS packages on a Mac. Windows packages are built on Windows or by the release workflow after the repository is pushed to GitHub.
 
-## 构建跨平台桌面端
+## Run in development
+
+Install the platform prerequisites, then run:
 
 ```bash
-git clone https://github.com/changzhengithub/codex-quota-tool.git
-cd codex-quota-tool
 cd apps/desktop-tauri
 npm ci
-npm run tauri build
-```
-
-构建产物位于 `apps/desktop-tauri/src-tauri/target/release/bundle/`。Tauri 需要在目标操作系统上构建：在 macOS 生成 `.app`/`.dmg`，在 Windows 生成 `.msi`/`.exe`。
-
-macOS/Linux shell 也可以在仓库根目录运行：
-
-```bash
-./Scripts/build-desktop.sh
-```
-
-调试模式：
-
-```bash
-cd apps/desktop-tauri
 npm run tauri dev
 ```
 
-原生 SwiftUI 版仍可通过 `./Scripts/build-app.sh` 构建，或用 Xcode 打开 `Package.swift`。
+This starts Vite and the native Tauri process together. Running only `npm run dev` opens the web frontend without the Rust backend, tray, App Server connection, or native widget.
 
-## 测试
-
-运行跨平台端测试：
+## Build from source
 
 ```bash
 cd apps/desktop-tauri
+npm ci
 npm run build
-cargo test --manifest-path src-tauri/Cargo.toml
+cargo test --locked --manifest-path src-tauri/Cargo.toml
+npm run tauri build
 ```
 
-运行原生 Swift 版测试：
+On Windows, use the same commands from PowerShell. Tauri packages must be built on the target operating system. The GitHub Actions workflows run frontend checks and Rust tests on macOS and Windows, build each release target, generate portable ZIPs, and publish SHA-256 checksum files for tags matching `v*`.
+
+For a local package with an easy-to-find output path, use the platform command instead:
 
 ```bash
-swift test
+# macOS
+env APPLE_SIGNING_IDENTITY=- npm run package:mac
+
+# Windows PowerShell
+npm run package:windows
 ```
 
-真实账户集成测试默认不会运行。只有在你明确选择后，才会使用当前登录态执行一次只读额度查询：
+Both commands copy the finished app/installer and `SHA256SUMS.txt` to the repository-root [`artifacts`](artifacts) directory. The deep Tauri target directory remains only an implementation detail.
 
-```bash
-LIVE_CODEX_TEST=1 swift test --filter CodexAppServerIntegrationTests
-```
+## Privacy
 
-## 故障排查
+Quota snapshots, account metadata returned by the App Server, and operational errors stay in process memory. The settings file is allowlisted and may contain only language, widget position, UI preferences, refresh interval, widget visibility, and a custom Codex binary path. CodexMeter does not persist tokens, account identity, raw App Server responses, quota history, or chat content. See [PRIVACY.md](PRIVACY.md).
 
-- **打开后无反应**：先查看 macOS 菜单栏或 Windows 系统托盘；也可在活动监视器/任务管理器中搜索应用。
-- **显示“找不到 Codex”**：macOS 请确认桌面应用已安装；Windows 请在终端运行 `codex --version`，确认 CLI 在 PATH 中。
-- **显示未登录或查询超时**：先打开 Codex 完成登录，再从菜单栏选择“重连”。
-- **需要自定义 Codex 路径**：从终端启动时设置 `CODEX_BINARY=/path/to/codex`。
-- **macOS 开机启动失败**：确认应用已经移动到 `/Applications`，再重新关闭并启用该选项。
-- **Windows 缺少 WebView**：安装或修复 Microsoft Edge WebView2 Runtime 后重试。
-- **朋友的 Mac 提示无法验证开发者**：公开分发应使用 Developer ID 签名和 Apple 公证，参见 [发布说明](docs/RELEASING.md)。
+## Project lineage
 
-## 参与项目
+CodexMeter is a maintained derivative of the MIT-licensed [changzhengithub/codex-quota-tool](https://github.com/changzhengithub/codex-quota-tool). Its original copyright notice and license are preserved. The release validation and window-behavior ideas were also reviewed against [cpys/codex-quota-overlay](https://github.com/cpys/codex-quota-overlay); CodexMeter does not use its Electron runtime, telemetry, persisted history, or forecasting features.
 
-提交代码前请阅读 [贡献指南](CONTRIBUTING.md) 与 [行为准则](CODE_OF_CONDUCT.md)。安全问题请按照 [安全策略](SECURITY.md) 私下报告，不要公开提交包含账户信息的 Issue。
+## Contributing and security
 
-仓库所有者第一次公开前还需要完成 [开源发布清单](docs/OPEN_SOURCE_CHECKLIST.md)，其中包括配置仓库安全选项和选择二进制签名方式。
+Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request. Please report vulnerabilities using [SECURITY.md](SECURITY.md) and never post real account identifiers, tokens, raw responses, or local paths in a public issue.
 
-## 许可证
+## License
 
-项目以 [MIT License](LICENSE) 开源。名称及相关商标归各自权利人所有。
+MIT. See [LICENSE](LICENSE).

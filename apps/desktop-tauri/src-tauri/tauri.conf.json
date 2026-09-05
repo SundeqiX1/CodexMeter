@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Codex Quota Tool",
-  "version": "0.2.0",
-  "identifier": "io.github.changzhengithub.codexquotatool",
+  "productName": "CodexMeter",
+  "version": "0.1.0",
+  "identifier": "app.codexmeter.desktop",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -10,23 +10,45 @@
     "frontendDist": "../dist"
   },
   "app": {
+    "macOSPrivateApi": true,
     "windows": [
       {
-        "label": "main",
-        "title": "Codex Quota Tool",
-        "width": 410,
-        "height": 650,
-        "minWidth": 410,
-        "minHeight": 650,
-        "maxWidth": 410,
-        "maxHeight": 650,
+        "label": "panel",
+        "title": "Codex Usage",
+        "width": 340,
+        "height": 488,
+        "minWidth": 340,
+        "minHeight": 488,
+        "maxWidth": 340,
+        "maxHeight": 488,
+        "resizable": false,
+        "decorations": false,
+        "transparent": true,
+        "alwaysOnTop": false,
+        "skipTaskbar": true,
+        "center": true,
+        "shadow": true,
+        "visible": false
+      },
+      {
+        "label": "widget",
+        "title": "CodexMeter Widget",
+        "width": 224,
+        "height": 48,
+        "minWidth": 224,
+        "minHeight": 48,
+        "maxWidth": 224,
+        "maxHeight": 118,
         "resizable": false,
         "decorations": false,
         "transparent": true,
         "alwaysOnTop": true,
         "skipTaskbar": true,
+        "focus": false,
+        "focusable": false,
+        "shadow": false,
         "center": true,
-        "shadow": true
+        "visible": false
       }
     ],
     "security": {
@@ -43,14 +65,16 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "shortDescription": "Codex quota in a compact desktop widget",
-    "longDescription": "A cross-platform desktop widget that displays quota from your local Codex session.",
+    "shortDescription": "Private, glanceable Codex quota monitoring",
+    "longDescription": "A lightweight cross-platform menu bar, tray, and floating widget for local Codex quota data.",
     "macOS": {
       "minimumSystemVersion": "13.0"
     },
     "windows": {
-      "allowDowngrades": false
+      "allowDowngrades": false,
+      "nsis": {
+        "installMode": "currentUser"
+      }
     }
   }
 }
-

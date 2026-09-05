@@ -1,84 +1,34 @@
 # Releasing
 
-Source releases and downloadable desktop binaries have different trust
-requirements. Source code can be tagged immediately. Public macOS binaries
-should be signed and notarized by Apple; Windows installers should be signed
-with a trusted code-signing certificate.
+## Before tagging
 
-## Prepare a release
+1. Synchronize the version in `apps/desktop-tauri/package.json`, `package-lock.json`, `src-tauri/Cargo.toml`, and `src-tauri/tauri.conf.json`.
+2. Update `CHANGELOG.md`.
+3. Run the frontend build, Rust formatting check, and Rust tests on both supported operating systems.
+4. Test the tray, menu bar title, missing-window behavior, widget dragging/position restore, startup toggle, and stale recovery on physical machines.
+5. Confirm the repository contains no account data, settings files, raw responses, certificates, or credentials.
 
-1. Update `CHANGELOG.md`, `apps/desktop-tauri/package.json`,
-   `apps/desktop-tauri/src-tauri/Cargo.toml`, `tauri.conf.json`, and the native
-   `Packaging/Info.plist` when it is included in the release.
-2. Run the frontend build, Rust tests, and relevant Swift tests.
-3. Run the opt-in live integration test on a disposable development account when possible.
-4. Build and test on every advertised architecture.
-5. Confirm the repository contains no generated binaries or credentials.
+For an easy-to-find local preview build, run `npm run package:mac` or `npm run package:windows` from `apps/desktop-tauri`. The export step places the native app/installer and SHA-256 checksum file in the repository-root `artifacts/` directory.
 
-## Cross-platform local builds
+## Signing
 
-Build on each target operating system rather than copying one platform's
-bundle to another:
+For public macOS downloads, configure Developer ID Application signing, Hardened Runtime, notarization, and stapling. The workflow accepts Tauri's standard Apple signing/notarization secrets and falls back to an ad-hoc signature when no identity is configured; that fallback is only a development preview. Validate final applications with `codesign`, `spctl`, and `xcrun stapler`.
 
-```bash
-cd apps/desktop-tauri
-npm ci
-npm run tauri build
-```
+For public Windows downloads, configure a trusted Authenticode certificate or signing service and sign both the application and NSIS installer. Unsigned builds are development previews and display an unknown-publisher warning.
 
-Artifacts are placed under `src-tauri/target/release/bundle/`. macOS produces
-application/disk-image bundles; Windows produces MSI/NSIS installers.
+## Tag and publish
 
-## Native macOS development build
+Push a tag matching the synchronized version:
 
 ```bash
-./Scripts/build-app.sh
-codesign --verify --deep --strict dist/CodexQuotaWidget.app
+git tag -a v0.1.0 -m "CodexMeter v0.1.0"
+git push origin v0.1.0
 ```
 
-The script uses ad-hoc signing and is intended for local testing only.
+The release workflow builds Windows x64, macOS arm64, and macOS x64. It publishes:
 
-## Public macOS binary release
+- Windows setup EXE and portable ZIP;
+- arm64 and x64 macOS DMG and ZIP;
+- per-target SHA-256 checksum files.
 
-Public releases should use a Developer ID Application identity, Hardened
-Runtime, a secure timestamp, Apple notarization, and a stapled notarization
-ticket. Keep certificate files and notary credentials outside the repository.
-
-Typical verification commands after signing and notarization:
-
-```bash
-codesign --verify --deep --strict --verbose=2 CodexQuotaWidget.app
-xcrun stapler validate CodexQuotaWidget.app
-spctl --assess --type execute --verbose=4 CodexQuotaWidget.app
-```
-
-Create the final archive only after stapling the app:
-
-```bash
-ditto -c -k --sequesterRsrc --keepParent CodexQuotaWidget.app CodexQuotaWidget.zip
-shasum -a 256 CodexQuotaWidget.zip
-```
-
-Attach the ZIP and checksum to a GitHub Release rather than committing them to
-the source tree.
-
-## Public Windows binary release
-
-Build on a clean Windows runner. Sign the application executable, MSI, and NSIS
-installer with the project's Windows code-signing certificate, then verify the
-signature before uploading. Keep the certificate and its password in GitHub
-Actions secrets or an external signing service; never commit either one.
-
-Unsigned Windows packages are acceptable for local development, but they will
-show an unknown-publisher warning and should not be advertised as a trusted
-public download.
-
-## Tagging
-
-```bash
-git tag -s v0.2.0 -m "Codex Quota Tool v0.2.0"
-git push origin v0.2.0
-```
-
-If signed tags are not configured, use an annotated tag and document that
-choice in the release notes.
+Download every artifact from the draft/release, verify checksums, and install it on a clean matching platform before announcing the release.

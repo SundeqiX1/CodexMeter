@@ -2,31 +2,18 @@
 
 ## Supported versions
 
-Security fixes are provided for the latest release and the current `main`
-branch. Older builds may stop working as the experimental Codex App Server
-protocol evolves.
+Security fixes are applied to the latest released version and the `main` branch.
 
 ## Reporting a vulnerability
 
-Please use GitHub's private vulnerability reporting feature for this
-repository. Do not open a public issue for vulnerabilities involving:
+Please use GitHub's private Security Advisories feature for this repository. If it is unavailable, contact the repository maintainers privately before opening a public issue.
 
-- authentication or Codex session data;
-- command or executable path injection;
-- unintended disclosure of account, quota, or billing information;
-- release signing or update integrity;
-- persistent access outside the documented local Codex connection.
+Include the affected version, platform, impact, reproduction steps, and a minimal proof of concept. Do not include real tokens, cookies, account identifiers, raw App Server responses, chat content, or personally identifying local paths. Replace those values with obvious placeholders.
 
-Include reproduction steps, affected versions, impact, and a minimal proof of
-concept when possible. Do not include real access tokens, cookies, credentials,
-or private Codex session files.
+Please allow a reasonable period for validation and a coordinated fix before public disclosure.
 
 ## Security boundaries
 
-CodexQuotaWidget launches the locally installed `codex app-server` executable
-and exchanges newline-delimited JSON over standard input and output. It should
-not read, copy, log, or store Codex authentication tokens directly. Quota
-snapshots are held in memory for display and are not uploaded by the widget.
+CodexMeter communicates only with the local `codex app-server` over child-process stdio. It must not directly read Codex authentication storage or browser cookies. Quota data is memory-only, renderer access is limited by Tauri capabilities, and the settings store accepts only documented UI and executable-path fields.
 
-The Codex process uses the user's existing OpenAI connection. Users should only
-install binaries from a trusted release and verify the published checksum.
+Release maintainers should use supported GitHub Actions releases, review dependency changes, publish SHA-256 checksums, and sign/notarize distributed binaries whenever signing credentials are available. Never commit signing certificates, passwords, notarization credentials, tokens, or generated account fixtures.

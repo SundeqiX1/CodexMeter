@@ -1,11 +1,14 @@
 {
-  "name": "codex-quota-desktop",
+  "name": "codexmeter",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 1420",
     "build": "tsc && vite build",
+    "export:artifacts": "node scripts/export-artifacts.mjs",
+    "package:mac": "tauri build --bundles app,dmg && node scripts/export-artifacts.mjs",
+    "package:windows": "tauri build --bundles nsis && node scripts/export-artifacts.mjs",
     "preview": "vite preview",
     "tauri": "tauri"
   },

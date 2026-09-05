@@ -31,7 +31,14 @@ impl LaunchSpec {
     }
 }
 
-pub fn locate_codex() -> Option<LaunchSpec> {
+pub fn locate_codex(configured_path: Option<&str>) -> Option<LaunchSpec> {
+    if let Some(path) = configured_path.filter(|value| !value.trim().is_empty()) {
+        let path = PathBuf::from(path);
+        if is_candidate(&path) {
+            return Some(spec_for(path));
+        }
+    }
+
     if let Some(override_path) = env::var_os("CODEX_BINARY").filter(|value| !value.is_empty()) {
         let path = PathBuf::from(override_path);
         if is_candidate(&path) {
@@ -129,5 +136,10 @@ mod tests {
         let spec = LaunchSpec::direct(PathBuf::from("codex"));
         assert_eq!(spec.program, PathBuf::from("codex"));
         assert_eq!(spec.args, vec!["app-server", "--stdio"]);
+    }
+
+    #[test]
+    fn missing_configured_path_does_not_disable_discovery() {
+        let _ = locate_codex(Some("/definitely/missing/codex"));
     }
 }

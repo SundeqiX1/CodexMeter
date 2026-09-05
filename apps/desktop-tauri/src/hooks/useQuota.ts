@@ -2,19 +2,31 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { disable, enable, isEnabled } from "@tauri-apps/plugin-autostart";
 import { useCallback, useEffect, useState } from "react";
-import type { FrontendState } from "../types";
+import { resolveLanguage, translations } from "../i18n";
+import type { AppSettings, FrontendState } from "../types";
 
 const INITIAL_STATE: FrontendState = {
   connection: { status: "disconnected" },
   snapshot: null,
   lastUpdated: null,
   platform: "unknown",
+  settings: {
+    language: "system",
+    refreshIntervalSecs: 60,
+    compactMenuBar: false,
+    hideMissingWindows: false,
+    widgetVisible: false,
+    widgetPosition: null,
+    codexBinaryPath: null,
+  },
 };
 
 export function useQuota() {
   const [state, setState] = useState<FrontendState>(INITIAL_STATE);
   const [launchAtLogin, setLaunchAtLogin] = useState(false);
   const [settingsMessage, setSettingsMessage] = useState<string | null>(null);
+  const language = resolveLanguage(state.settings.language);
+  const copy = translations[language];
 
   useEffect(() => {
     let disposed = false;
@@ -52,6 +64,11 @@ export function useQuota() {
     };
   }, []);
 
+  useEffect(() => {
+    document.documentElement.lang = language;
+    void invoke("set_ui_language", { language });
+  }, [language]);
+
   const refresh = useCallback(async () => {
     await invoke("refresh_codex");
   }, []);
@@ -67,10 +84,26 @@ export function useQuota() {
       else await disable();
       const confirmed = await isEnabled();
       setLaunchAtLogin(confirmed);
-      if (confirmed !== enabled) setSettingsMessage("系统没有确认这次开机启动设置。");
+      if (confirmed !== enabled) setSettingsMessage(copy.autostartNotConfirmed);
     } catch (error) {
-      setSettingsMessage(`开机启动设置失败：${String(error)}`);
+      setSettingsMessage(`${copy.autostartFailed}: ${String(error)}`);
     }
+  }, [copy]);
+
+  const saveSettings = useCallback(async (settings: AppSettings) => {
+    setSettingsMessage(null);
+    try {
+      const saved = await invoke<AppSettings>("save_settings", { settings });
+      setState((current) => ({ ...current, settings: saved }));
+      return true;
+    } catch (error) {
+      setSettingsMessage(`${copy.saveFailed}: ${String(error)}`);
+      return false;
+    }
+  }, [copy]);
+
+  const setWidgetVisible = useCallback(async (visible: boolean) => {
+    await invoke("set_widget_visible", { visible });
   }, []);
 
   return {
@@ -79,6 +112,8 @@ export function useQuota() {
     settingsMessage,
     refresh,
     reconnect,
+    saveSettings,
+    setWidgetVisible,
     setLaunchAtLoginEnabled,
   };
 }

@@ -1,173 +1,273 @@
-import { getCurrentWindow } from "@tauri-apps/api/window";
-import { useMemo } from "react";
-import { Gauge } from "./components/Gauge";
-import { CloseIcon, LinkIcon, RefreshIcon } from "./components/Icons";
-import { WindowRow } from "./components/WindowRow";
+import { listen } from "@tauri-apps/api/event";
+import { invoke } from "@tauri-apps/api/core";
+import { getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
+import { useEffect, useMemo, useState } from "react";
 import { useQuota } from "./hooks/useQuota";
-import {
-  criticalWindow,
-  displayName,
-  orderedLimits,
-  planName,
-  remainingPercent,
-  resetLabel,
-  windowLabel,
-  windowsFor,
-} from "./lib/quota";
+import { resolveLanguage, translations } from "./i18n";
+import type { Translation } from "./i18n";
+import { remainingPercent, resetLabel, windowForDuration } from "./lib/quota";
+import type { AppSettings, RateLimitWindow, ResolvedLanguage } from "./types";
 
-const STATUS_LABELS = {
-  disconnected: "未连接",
-  connecting: "连接中",
-  connected: "实时",
-  failed: "连接异常",
-} as const;
+const currentWindow = getCurrentWindow();
 
-function App() {
+function percent(window: RateLimitWindow | null): string {
+  return window ? `${Math.round(remainingPercent(window))}%` : "--";
+}
+
+function UsageRow({
+  label,
+  window,
+  language,
+  copy,
+}: {
+  label: string;
+  window: RateLimitWindow | null;
+  language: ResolvedLanguage;
+  copy: Translation;
+}) {
+  const remaining = window ? remainingPercent(window) : null;
+  return (
+    <section className="usage-row">
+      <div className="usage-row__top">
+        <span>{label}</span>
+        <strong>{remaining == null ? "--" : `${Math.round(remaining)}%`}</strong>
+      </div>
+      <div className="meter" aria-label={remaining == null ? `${label} ${copy.statusFailed}` : `${remaining}% ${copy.remaining}`}>
+        <i style={{ width: `${remaining ?? 0}%` }} />
+      </div>
+      <small>{window ? `${copy.reset} ${resetLabel(window.resetsAt, language, copy.unknown)}` : copy.notReported}</small>
+    </section>
+  );
+}
+
+function Widget() {
+  const { state, setWidgetVisible } = useQuota();
+  const [expanded, setExpanded] = useState(false);
+  const language = resolveLanguage(state.settings.language);
+  const copy = translations[language];
+  const fiveHour = useMemo(() => windowForDuration(state.snapshot, 300), [state.snapshot]);
+  const weekly = useMemo(() => windowForDuration(state.snapshot, 10_080), [state.snapshot]);
+
+  const resize = async (nextExpanded: boolean) => {
+    setExpanded(nextExpanded);
+    await currentWindow.setSize(new LogicalSize(224, nextExpanded ? 118 : 48));
+  };
+
+  return (
+    <main
+      className={`widget ${expanded ? "widget--expanded" : ""}`}
+      onPointerEnter={() => void resize(true)}
+      onPointerLeave={() => void resize(false)}
+    >
+      <div className="widget__card">
+        <div className="widget__summary">
+          <i className={`status-dot status-dot--${state.connection.status}`} data-tauri-drag-region />
+          <strong data-tauri-drag-region>5h {percent(fiveHour)}</strong>
+          <span data-tauri-drag-region>W {percent(weekly)}</span>
+          <button aria-label={copy.closeWidget} onClick={() => void setWidgetVisible(false)}>×</button>
+        </div>
+        <div className="widget__details" aria-hidden={!expanded} data-tauri-drag-region>
+          <span>5h <b>{percent(fiveHour)}</b><small>{fiveHour ? `${copy.reset} ${resetLabel(fiveHour.resetsAt, language, copy.unknown)}` : copy.noData}</small></span>
+          <span>{copy.weekly} <b>{percent(weekly)}</b><small>{weekly ? `${copy.reset} ${resetLabel(weekly.resetsAt, language, copy.unknown)}` : copy.noData}</small></span>
+        </div>
+      </div>
+    </main>
+  );
+}
+
+function SettingsView({
+  value,
+  message,
+  onCancel,
+  onSave,
+  copy,
+}: {
+  value: AppSettings;
+  message: string | null;
+  onCancel: () => void;
+  onSave: (settings: AppSettings) => void;
+  copy: Translation;
+}) {
+  const [draft, setDraft] = useState(value);
+  useEffect(() => setDraft(value), [value]);
+
+  return (
+    <div className="settings-view">
+      <label>
+        {copy.language}
+        <select
+          value={draft.language}
+          onChange={(event) => setDraft({ ...draft, language: event.target.value as AppSettings["language"] })}
+        >
+          <option value="system">{copy.followSystem}</option>
+          <option value="en">{copy.english}</option>
+          <option value="zh-CN">{copy.simplifiedChinese}</option>
+        </select>
+      </label>
+      <label>
+        {copy.refreshInterval}
+        <select
+          value={draft.refreshIntervalSecs}
+          onChange={(event) => setDraft({ ...draft, refreshIntervalSecs: Number(event.target.value) })}
+        >
+          <option value={30}>{copy.seconds30}</option>
+          <option value={60}>{copy.seconds60}</option>
+        </select>
+      </label>
+      <label>
+        {copy.codexBinaryPath}
+        <input
+          value={draft.codexBinaryPath ?? ""}
+          onChange={(event) => setDraft({ ...draft, codexBinaryPath: event.target.value || null })}
+          placeholder={copy.autoDetect}
+          spellCheck={false}
+        />
+      </label>
+      <label className="check-row">
+        <input
+          type="checkbox"
+          checked={draft.compactMenuBar}
+          onChange={(event) => setDraft({ ...draft, compactMenuBar: event.target.checked })}
+        />
+        {copy.compactMenuBar}
+      </label>
+      <label className="check-row">
+        <input
+          type="checkbox"
+          checked={draft.hideMissingWindows}
+          onChange={(event) => setDraft({ ...draft, hideMissingWindows: event.target.checked })}
+        />
+        {copy.hideMissingWindows}
+      </label>
+      <label className="check-row">
+        <input
+          type="checkbox"
+          checked={draft.widgetVisible}
+          onChange={(event) => setDraft({ ...draft, widgetVisible: event.target.checked })}
+        />
+        {copy.showFloatingWidget}
+      </label>
+      <p className="privacy-note">{copy.privacyNote}</p>
+      {message ? <p className="settings-message">{message}</p> : null}
+      <div className="settings-actions">
+        <button className="button button--quiet" onClick={onCancel}>{copy.cancel}</button>
+        <button className="button button--primary" onClick={() => onSave(draft)}>{copy.save}</button>
+      </div>
+    </div>
+  );
+}
+
+function Panel() {
   const {
     state,
     launchAtLogin,
     settingsMessage,
     refresh,
     reconnect,
+    saveSettings,
+    setWidgetVisible,
     setLaunchAtLoginEnabled,
   } = useQuota();
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const language = resolveLanguage(state.settings.language);
+  const copy = translations[language];
+  const fiveHour = useMemo(() => windowForDuration(state.snapshot, 300), [state.snapshot]);
+  const weekly = useMemo(() => windowForDuration(state.snapshot, 10_080), [state.snapshot]);
+  const hideMissing = state.settings.hideMissingWindows;
 
-  const limits = useMemo(() => orderedLimits(state.snapshot), [state.snapshot]);
-  const primaryLimit = limits[0] ?? null;
-  const windows = useMemo(() => windowsFor(primaryLimit), [primaryLimit]);
-  const critical = useMemo(() => criticalWindow(state.snapshot), [state.snapshot]);
-  const mainRemaining = critical ? remainingPercent(critical) : null;
-  const updatedLabel = state.lastUpdated
-    ? new Intl.DateTimeFormat("zh-CN", { hour: "2-digit", minute: "2-digit" }).format(
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    void listen("ui://open-settings", () => setSettingsOpen(true)).then((dispose) => {
+      unlisten = dispose;
+    });
+    return () => unlisten?.();
+  }, []);
+
+  const statusLabels = {
+    disconnected: copy.statusDisconnected,
+    connecting: copy.statusConnecting,
+    connected: copy.statusConnected,
+    stale: copy.statusStale,
+    failed: copy.statusFailed,
+  };
+  const updated = state.lastUpdated
+    ? new Intl.DateTimeFormat(language, { hour: "2-digit", minute: "2-digit", second: "2-digit" }).format(
         new Date(state.lastUpdated),
       )
-    : "尚未同步";
+    : copy.never;
 
-  const closeWindow = async () => {
-    await getCurrentWindow().hide();
-  };
+  const close = () => void currentWindow.hide();
 
   return (
-    <main className="shell">
-      <div className="surface">
-        <header className="titlebar" data-tauri-drag-region>
-          <div className="brand" data-tauri-drag-region>
-            <span className="brand-mark" aria-hidden="true">
-              <i />
-              <i />
-              <i />
-            </span>
-            <div data-tauri-drag-region>
-              <strong>CODEX / QUOTA</strong>
-              <span>{state.platform === "windows" ? "WINDOWS DESKTOP" : "MAC DESKTOP"}</span>
-            </div>
+    <main className="panel-shell">
+      <div className="panel">
+        <header className="panel__header">
+          <div data-tauri-drag-region>
+            <span>CODEXMETER</span>
+            <h1>{copy.codexUsage}</h1>
           </div>
-          <div className="titlebar-actions">
-            <span className={`status status--${state.connection.status}`} aria-live="polite">
-              <i />
-              {STATUS_LABELS[state.connection.status]}
-            </span>
-            <button className="icon-button" onClick={() => void closeWindow()} aria-label="隐藏窗口">
-              <CloseIcon />
-            </button>
-          </div>
+          <button aria-label={copy.closePanel} onClick={close}>×</button>
         </header>
 
-        <div className="rule" />
-
-        <Gauge
-          percent={mainRemaining}
-          label={critical ? windowLabel(critical.windowDurationMins) : "等待额度数据"}
-          detail={critical ? `${resetLabel(critical.resetsAt)}重置` : "连接本机 Codex 后自动同步"}
-        />
-
-        {state.connection.status === "failed" ? (
-          <section className="notice notice--error">
-            <span>CONNECTION REPORT</span>
-            <p>{state.connection.message || "Codex App Server 连接失败。"}</p>
-            <button onClick={() => void reconnect()}>
-              <LinkIcon />
-              重新连接
-            </button>
-          </section>
-        ) : null}
-
-        <section className="limits-panel">
-          <div className="section-heading">
-            <div>
-              <span className="eyebrow">LIMIT WINDOWS</span>
-              <h3>{primaryLimit ? displayName(primaryLimit) : "额度窗口"}</h3>
+        {settingsOpen ? (
+          <SettingsView
+            value={state.settings}
+            message={settingsMessage}
+            copy={copy}
+            onCancel={() => setSettingsOpen(false)}
+            onSave={async (settings) => {
+              if (await saveSettings(settings)) setSettingsOpen(false);
+            }}
+          />
+        ) : (
+          <>
+            <div className="connection-row">
+              <span><i className={`status-dot status-dot--${state.connection.status}`} />{statusLabels[state.connection.status]}</span>
+              <small>{copy.lastUpdated} {updated}</small>
             </div>
-            {planName(primaryLimit?.planType) ? <span className="plan-badge">{planName(primaryLimit?.planType)}</span> : null}
-          </div>
 
-          <div className="window-list">
-            {windows.length > 0 ? (
-              windows.map((window, index) => (
-                <WindowRow
-                  key={`${window.windowDurationMins ?? "unknown"}-${window.resetsAt ?? 0}-${index}`}
-                  window={window}
-                />
-              ))
-            ) : (
-              <div className="empty-row">
-                <span className="scanner" />
-                正在等待服务器快照
+            <div className="usage-list">
+              {fiveHour || !hideMissing ? <UsageRow label={copy.fiveHour} window={fiveHour} language={language} copy={copy} /> : null}
+              {weekly || !hideMissing ? <UsageRow label={copy.weekly} window={weekly} language={language} copy={copy} /> : null}
+              {!fiveHour && !weekly && hideMissing ? <p className="empty">{copy.noRecognizedWindows}</p> : null}
+            </div>
+
+            {state.connection.message ? <p className="connection-message">{state.connection.message}</p> : null}
+
+            <div className="primary-actions">
+              <button className="button button--primary" onClick={() => void refresh()}>{copy.refresh}</button>
+              {(state.connection.status === "failed" || state.connection.status === "stale") ? (
+                <button className="button button--quiet" onClick={() => void reconnect()}>{copy.reconnect}</button>
+              ) : null}
+            </div>
+
+            <div className="menu-list">
+              <button onClick={() => void setWidgetVisible(!state.settings.widgetVisible)}>
+                <span>{copy.floatingWidget}</span><b>{state.settings.widgetVisible ? copy.on : copy.off}</b>
+              </button>
+              <button onClick={() => void setLaunchAtLoginEnabled(!launchAtLogin)}>
+                <span>{state.platform === "windows" ? copy.launchAtStartup : copy.launchAtLogin}</span><b>{launchAtLogin ? copy.on : copy.off}</b>
+              </button>
+              <button onClick={() => setSettingsOpen(true)}><span>{copy.settings}</span><b>›</b></button>
+              <button onClick={() => void invoke("quit_codexmeter")}>
+                <span>{copy.quit}</span><b>×</b>
+              </button>
+            </div>
+
+            <details>
+              <summary>{copy.details}</summary>
+              <div className="details-grid">
+                <span>{copy.resetCredits}</span><b>{state.snapshot?.rateLimitResetCredits?.availableCount ?? "--"}</b>
+                <span>{copy.dataSource}</span><b>{copy.localAppServer}</b>
               </div>
-            )}
-          </div>
-        </section>
-
-        <section className="metrics">
-          <div>
-            <span>积分余额</span>
-            <strong>
-              {primaryLimit?.credits?.unlimited ? "无限" : primaryLimit?.credits?.balance ?? "—"}
-            </strong>
-          </div>
-          <div>
-            <span>重置券</span>
-            <strong>{state.snapshot?.rateLimitResetCredits?.availableCount ?? "—"}</strong>
-          </div>
-          <div>
-            <span>同步时间</span>
-            <strong className="metrics__time">{updatedLabel}</strong>
-          </div>
-        </section>
-
-        <footer>
-          <label className="switch-row">
-            <span>
-              <strong>开机启动</strong>
-              <small>登录系统后保持额度可见</small>
-            </span>
-            <input
-              type="checkbox"
-              checked={launchAtLogin}
-              onChange={(event) => void setLaunchAtLoginEnabled(event.target.checked)}
-            />
-            <i aria-hidden="true" />
-          </label>
-
-          {settingsMessage ? <p className="settings-message">{settingsMessage}</p> : null}
-
-          <div className="footer-actions">
-            <span title={state.connection.executable ?? undefined}>
-              {state.connection.executable ? "LOCAL SESSION" : "NO SESSION"}
-            </span>
-            <button
-              className="refresh-button"
-              onClick={() => void refresh()}
-              disabled={state.connection.status === "connecting"}
-            >
-              <RefreshIcon />
-              刷新额度
-            </button>
-          </div>
-        </footer>
+            </details>
+          </>
+        )}
       </div>
     </main>
   );
 }
 
-export default App;
+export default function App() {
+  return currentWindow.label === "widget" ? <Widget /> : <Panel />;
+}

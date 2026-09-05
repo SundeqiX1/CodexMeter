@@ -15,11 +15,15 @@ use tokio::{
 
 use crate::{
     launcher::{locate_codex, LaunchSpec},
-    models::{ConnectionStatus, FrontendState, RateLimitsEnvelope},
+    models::{
+        AppSettings, ConnectionStatus, FrontendState, RateLimitSnapshot, RateLimitWindow,
+        RateLimitsEnvelope, ResolvedLanguage,
+    },
+    resolved_language,
+    settings::SettingsStore,
 };
 
 const INITIALIZE_REQUEST_ID: i64 = 1;
-const REFRESH_INTERVAL: Duration = Duration::from_secs(300);
 const INITIALIZE_TIMEOUT: Duration = Duration::from_secs(20);
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(25);
 
@@ -30,9 +34,11 @@ pub struct QuotaService {
 }
 
 impl QuotaService {
-    pub fn start(app: AppHandle) -> Self {
+    pub fn start(app: AppHandle, settings: SettingsStore) -> Self {
         let (commands, command_rx) = mpsc::unbounded_channel();
-        let state = Arc::new(RwLock::new(FrontendState::default()));
+        let mut initial_state = FrontendState::default();
+        initial_state.settings = settings.get();
+        let state = Arc::new(RwLock::new(initial_state));
         let worker = Worker::new(app, Arc::clone(&state), command_rx);
         tauri::async_runtime::spawn(worker.run());
         Self { commands, state }
@@ -58,6 +64,14 @@ impl QuotaService {
         self.send(ServiceCommand::Disconnect)
     }
 
+    pub fn update_settings(&self, settings: AppSettings) -> Result<(), String> {
+        self.send(ServiceCommand::UpdateSettings(settings))
+    }
+
+    pub fn refresh_ui(&self, app: &AppHandle) {
+        update_tray(app, &self.state());
+    }
+
     fn send(&self, command: ServiceCommand) -> Result<(), String> {
         self.commands
             .send(command)
@@ -70,6 +84,7 @@ enum ServiceCommand {
     Refresh,
     Reconnect,
     Disconnect,
+    UpdateSettings(AppSettings),
 }
 
 enum ProcessEvent {
@@ -145,7 +160,7 @@ impl Worker {
     async fn run(mut self) {
         let mut maintenance = time::interval(Duration::from_secs(1));
         maintenance.set_missed_tick_behavior(time::MissedTickBehavior::Skip);
-        let mut next_auto_refresh = Instant::now() + REFRESH_INTERVAL;
+        let mut next_auto_refresh = Instant::now() + self.refresh_interval();
 
         loop {
             tokio::select! {
@@ -169,6 +184,22 @@ impl Worker {
                             self.stop_session().await;
                             self.set_connection(ConnectionStatus::Disconnected, None, None);
                         }
+                        ServiceCommand::UpdateSettings(settings) => {
+                            let previous_binary = self
+                                .state
+                                .read()
+                                .unwrap()
+                                .settings
+                                .codex_binary_path
+                                .clone();
+                            let reconnect = previous_binary != settings.codex_binary_path;
+                            self.update_state(|state| state.settings = settings);
+                            next_auto_refresh = Instant::now() + self.refresh_interval();
+                            if reconnect {
+                                self.stop_session().await;
+                                self.connect().await;
+                            }
+                        }
                     }
                 }
                 event = self.process_rx.recv() => {
@@ -180,7 +211,7 @@ impl Worker {
                     self.check_timeouts().await;
                     if Instant::now() >= next_auto_refresh {
                         self.refresh().await;
-                        next_auto_refresh = Instant::now() + REFRESH_INTERVAL;
+                        next_auto_refresh = Instant::now() + self.refresh_interval();
                     }
                 }
             }
@@ -188,10 +219,20 @@ impl Worker {
     }
 
     async fn connect(&mut self) {
-        let Some(spec) = locate_codex() else {
+        let configured_path = self
+            .state
+            .read()
+            .unwrap()
+            .settings
+            .codex_binary_path
+            .clone();
+        let Some(spec) = locate_codex(configured_path.as_deref()) else {
             self.set_connection(
                 ConnectionStatus::Failed,
-                Some("找不到 Codex。请安装 Codex CLI，或设置 CODEX_BINARY。".to_owned()),
+                Some(self.text(
+                    "Codex was not found. Install Codex CLI or configure its path in Settings.",
+                    "找不到 Codex。请安装 Codex CLI，或在设置中指定程序路径。",
+                )),
                 None,
             );
             return;
@@ -228,21 +269,31 @@ impl Worker {
             command.as_std_mut().creation_flags(CREATE_NO_WINDOW);
         }
 
-        let mut child = command
-            .spawn()
-            .map_err(|error| format!("无法启动 Codex App Server：{error}"))?;
-        let stdin = child
-            .stdin
-            .take()
-            .ok_or_else(|| "Codex 输入通道不可用".to_owned())?;
-        let stdout = child
-            .stdout
-            .take()
-            .ok_or_else(|| "Codex 输出通道不可用".to_owned())?;
-        let stderr = child
-            .stderr
-            .take()
-            .ok_or_else(|| "Codex 错误通道不可用".to_owned())?;
+        let mut child = command.spawn().map_err(|error| {
+            self.with_detail(
+                "Unable to start Codex App Server",
+                "无法启动 Codex App Server",
+                &error,
+            )
+        })?;
+        let stdin = child.stdin.take().ok_or_else(|| {
+            self.text(
+                "Codex input channel is unavailable.",
+                "Codex 输入通道不可用。",
+            )
+        })?;
+        let stdout = child.stdout.take().ok_or_else(|| {
+            self.text(
+                "Codex output channel is unavailable.",
+                "Codex 输出通道不可用。",
+            )
+        })?;
+        let stderr = child.stderr.take().ok_or_else(|| {
+            self.text(
+                "Codex error channel is unavailable.",
+                "Codex 错误通道不可用。",
+            )
+        })?;
 
         let stdout_tx = self.process_tx.clone();
         tauri::async_runtime::spawn(async move {
@@ -286,14 +337,20 @@ impl Worker {
                 "id": INITIALIZE_REQUEST_ID,
                 "params": {
                     "clientInfo": {
-                        "name": "codex_quota_widget",
-                        "title": "Codex Quota Tool",
+                        "name": "codex_meter",
+                        "title": "CodexMeter",
                         "version": env!("CARGO_PKG_VERSION")
                     }
                 }
             }))
             .await
-            .map_err(|error| format!("无法初始化 Codex App Server：{error}"))?;
+            .map_err(|error| {
+                self.with_detail(
+                    "Unable to initialize Codex App Server",
+                    "无法初始化 Codex App Server",
+                    &error,
+                )
+            })?;
 
         Ok(session)
     }
@@ -310,7 +367,12 @@ impl Worker {
         let request_id = self.next_request_id;
         self.next_request_id += 1;
         if let Err(error) = session.request_rate_limits(request_id).await {
-            self.fail(format!("额度查询发送失败：{error}")).await;
+            let message = self.with_detail(
+                "Unable to send the quota request",
+                "额度查询发送失败",
+                &error,
+            );
+            self.fail(message).await;
         }
     }
 
@@ -338,20 +400,25 @@ impl Worker {
             }
             ProcessEvent::Eof(generation) => {
                 if self.session.as_ref().map(|session| session.generation) == Some(generation) {
-                    let status = self
+                    let status_code = self
                         .session
                         .as_mut()
                         .and_then(|session| session.child.try_wait().ok().flatten())
-                        .and_then(|status| status.code())
-                        .map(|code| format!("（状态码 {code}）"))
-                        .unwrap_or_default();
-                    let detail = self
-                        .error_tail
-                        .lines()
-                        .rev()
-                        .find(|line| !line.trim().is_empty())
-                        .map(str::to_owned)
-                        .unwrap_or_else(|| format!("Codex App Server 已退出{status}"));
+                        .and_then(|status| status.code());
+                    let detail =
+                        self.error_tail
+                            .lines()
+                            .rev()
+                            .find(|line| !line.trim().is_empty())
+                            .map(str::to_owned)
+                            .unwrap_or_else(|| match status_code {
+                                Some(code) => self.text(
+                                    &format!("Codex App Server exited (status {code})."),
+                                    &format!("Codex App Server 已退出（状态码 {code}）。"),
+                                ),
+                                None => self
+                                    .text("Codex App Server exited.", "Codex App Server 已退出。"),
+                            });
                     self.fail(detail).await;
                 }
             }
@@ -377,7 +444,12 @@ impl Worker {
                 .send(json!({ "method": "initialized", "params": {} }))
                 .await
             {
-                self.fail(format!("Codex 握手失败：{error}")).await;
+                let message = self.with_detail(
+                    "Codex App Server handshake failed",
+                    "Codex App Server 握手失败",
+                    &error,
+                );
+                self.fail(message).await;
                 return;
             }
             session.initialized = true;
@@ -391,7 +463,13 @@ impl Worker {
             let detail = error
                 .get("message")
                 .and_then(Value::as_str)
-                .unwrap_or("未知 App Server 错误")
+                .unwrap_or_else(|| {
+                    if resolved_language(&self.app) == ResolvedLanguage::SimplifiedChinese {
+                        "未知 App Server 错误"
+                    } else {
+                        "Unknown App Server error"
+                    }
+                })
                 .to_owned();
             if let Some(session) = self.session.as_mut() {
                 session.pending_request = None;
@@ -403,7 +481,7 @@ impl Worker {
         let Some(result) = message.get("result") else {
             return;
         };
-        if result.get("rateLimits").is_none() {
+        if result.get("rateLimits").is_none() && result.get("rateLimitsByLimitId").is_none() {
             return;
         }
 
@@ -424,7 +502,11 @@ impl Worker {
             Err(error) => {
                 self.set_connection(
                     ConnectionStatus::Failed,
-                    Some(format!("无法解析额度数据：{error}")),
+                    Some(self.with_detail(
+                        "Unable to parse quota data",
+                        "无法解析额度数据",
+                        &error,
+                    )),
                     None,
                 );
             }
@@ -437,8 +519,11 @@ impl Worker {
         };
         let now = Instant::now();
         if !session.initialized && now >= session.initialize_deadline {
-            self.fail("连接 Codex 超时。请确认已经登录 Codex。".to_owned())
-                .await;
+            let message = self.text(
+                "Codex connection timed out. Confirm that Codex is signed in.",
+                "连接 Codex 超时。请确认已经登录 Codex。",
+            );
+            self.fail(message).await;
             return;
         }
         if session
@@ -450,7 +535,10 @@ impl Worker {
             }
             self.set_connection(
                 ConnectionStatus::Failed,
-                Some("额度查询超时，稍后会自动重试。".to_owned()),
+                Some(self.text(
+                    "The quota request timed out. CodexMeter will retry automatically.",
+                    "额度查询超时，稍后会自动重试。",
+                )),
                 None,
             );
         }
@@ -479,7 +567,7 @@ impl Worker {
         executable: Option<String>,
     ) {
         self.update_state(|state| {
-            state.connection.status = status;
+            state.connection.status = effective_status(status, state.snapshot.is_some());
             state.connection.message = message;
             if executable.is_some() || state.connection.executable.is_none() {
                 state.connection.executable = executable;
@@ -496,6 +584,41 @@ impl Worker {
         let _ = self.app.emit("quota://updated", snapshot.clone());
         update_tray(&self.app, &snapshot);
     }
+
+    fn refresh_interval(&self) -> Duration {
+        Duration::from_secs(
+            self.state
+                .read()
+                .unwrap()
+                .settings
+                .refresh_interval_secs
+                .clamp(30, 60),
+        )
+    }
+
+    fn text(&self, english: &str, chinese: &str) -> String {
+        if resolved_language(&self.app) == ResolvedLanguage::SimplifiedChinese {
+            chinese.to_owned()
+        } else {
+            english.to_owned()
+        }
+    }
+
+    fn with_detail(&self, english: &str, chinese: &str, detail: &impl std::fmt::Display) -> String {
+        if resolved_language(&self.app) == ResolvedLanguage::SimplifiedChinese {
+            format!("{chinese}：{detail}")
+        } else {
+            format!("{english}: {detail}")
+        }
+    }
+}
+
+fn effective_status(status: ConnectionStatus, has_snapshot: bool) -> ConnectionStatus {
+    if status == ConnectionStatus::Failed && has_snapshot {
+        ConnectionStatus::Stale
+    } else {
+        status
+    }
 }
 
 fn now_millis() -> u64 {
@@ -508,30 +631,151 @@ fn now_millis() -> u64 {
 }
 
 fn update_tray(app: &AppHandle, state: &FrontendState) {
-    let Some(tray) = app.tray_by_id("quota-tray") else {
+    let Some(tray) = app.tray_by_id("codexmeter-tray") else {
         return;
     };
-    let remaining = state
-        .snapshot
-        .as_ref()
-        .and_then(|snapshot| {
-            [
-                snapshot.rate_limits.primary.as_ref(),
-                snapshot.rate_limits.secondary.as_ref(),
-            ]
-            .into_iter()
-            .flatten()
-            .map(|window| window.remaining_percent())
-            .min_by(f64::total_cmp)
-        })
-        .map(|percent| format!("{percent:.0}%"));
-
-    let tooltip = remaining
-        .as_ref()
-        .map(|percent| format!("Codex 剩余额度 {percent}"))
-        .unwrap_or_else(|| "Codex 额度".to_owned());
+    let limit = state.snapshot.as_ref().and_then(codex_limit);
+    let five_hour = limit.and_then(|value| window_by_duration(value, 300));
+    let weekly = limit.and_then(|value| window_by_duration(value, 10_080));
+    let title = tray_title(
+        five_hour,
+        weekly,
+        state.settings.compact_menu_bar,
+        state.settings.hide_missing_windows,
+    );
+    let chinese = resolved_language(app) == ResolvedLanguage::SimplifiedChinese;
+    let status = match (chinese, &state.connection.status) {
+        (true, ConnectionStatus::Connected) => "实时",
+        (true, ConnectionStatus::Connecting) => "连接中",
+        (true, ConnectionStatus::Stale) => "数据已过期",
+        (true, ConnectionStatus::Disconnected) => "未连接",
+        (true, ConnectionStatus::Failed) => "暂不可用",
+        (false, ConnectionStatus::Connected) => "Live",
+        (false, ConnectionStatus::Connecting) => "Connecting",
+        (false, ConnectionStatus::Stale) => "Stale",
+        (false, ConnectionStatus::Disconnected) => "Disconnected",
+        (false, ConnectionStatus::Failed) => "Unavailable",
+    };
+    let tooltip = format!("CodexMeter — {status} — {title}");
     let _ = tray.set_tooltip(Some(&tooltip));
 
     #[cfg(target_os = "macos")]
-    let _ = tray.set_title(remaining.as_deref());
+    let _ = tray.set_title(Some(&title));
+}
+
+fn codex_limit(snapshot: &RateLimitsEnvelope) -> Option<&RateLimitSnapshot> {
+    snapshot
+        .rate_limits_by_limit_id
+        .as_ref()
+        .and_then(|limits| limits.get("codex"))
+        .or(snapshot.rate_limits.as_ref())
+}
+
+fn window_by_duration(limit: &RateLimitSnapshot, minutes: u64) -> Option<&RateLimitWindow> {
+    [limit.primary.as_ref(), limit.secondary.as_ref()]
+        .into_iter()
+        .flatten()
+        .find(|window| window.window_duration_mins == Some(minutes))
+}
+
+fn tray_title(
+    five_hour: Option<&RateLimitWindow>,
+    weekly: Option<&RateLimitWindow>,
+    compact: bool,
+    hide_missing: bool,
+) -> String {
+    let percent = |window: Option<&RateLimitWindow>| {
+        window
+            .map(|value| format!("{:.0}%", value.remaining_percent()))
+            .unwrap_or_else(|| "--".to_owned())
+    };
+    let mut parts = Vec::new();
+    if five_hour.is_some() || !hide_missing {
+        parts.push(if compact {
+            percent(five_hour)
+        } else {
+            format!("5h {}", percent(five_hour))
+        });
+    }
+    if weekly.is_some() || !hide_missing {
+        parts.push(if compact {
+            percent(weekly)
+        } else {
+            format!("W {}", percent(weekly))
+        });
+    }
+    if parts.is_empty() {
+        "CodexMeter".to_owned()
+    } else {
+        parts.join(" · ")
+    }
+}
+
+#[cfg(test)]
+mod tray_tests {
+    use super::*;
+
+    fn window(used: f64, minutes: u64) -> RateLimitWindow {
+        RateLimitWindow {
+            used_percent: used,
+            window_duration_mins: Some(minutes),
+            resets_at: None,
+        }
+    }
+
+    #[test]
+    fn labels_windows_by_duration_and_never_invents_missing_data() {
+        let weekly = window(57.0, 10_080);
+        assert_eq!(
+            tray_title(None, Some(&weekly), false, false),
+            "5h -- · W 43%"
+        );
+        assert_eq!(tray_title(None, Some(&weekly), false, true), "W 43%");
+    }
+
+    #[test]
+    fn pro_style_weekly_only_payload_does_not_create_a_five_hour_window() {
+        let envelope: RateLimitsEnvelope = serde_json::from_value(serde_json::json!({
+            "rateLimitsByLimitId": {
+                "codex": {
+                    "primary": {
+                        "usedPercent": 57,
+                        "windowDurationMins": 10080,
+                        "resetsAt": 1_800_000_000
+                    }
+                }
+            }
+        }))
+        .unwrap();
+        let limit = codex_limit(&envelope).unwrap();
+
+        assert!(window_by_duration(limit, 300).is_none());
+        assert!(window_by_duration(limit, 10_080).is_some());
+        assert_eq!(
+            tray_title(None, window_by_duration(limit, 10_080), false, false),
+            "5h -- · W 43%"
+        );
+    }
+
+    #[test]
+    fn compact_title_omits_window_names_only() {
+        let five = window(24.0, 300);
+        let weekly = window(57.0, 10_080);
+        assert_eq!(
+            tray_title(Some(&five), Some(&weekly), true, false),
+            "76% · 43%"
+        );
+    }
+
+    #[test]
+    fn failed_connection_is_stale_only_when_a_valid_snapshot_exists() {
+        assert_eq!(
+            effective_status(ConnectionStatus::Failed, true),
+            ConnectionStatus::Stale
+        );
+        assert_eq!(
+            effective_status(ConnectionStatus::Failed, false),
+            ConnectionStatus::Failed
+        );
+    }
 }

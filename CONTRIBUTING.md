@@ -1,77 +1,36 @@
-# Contributing
+# Contributing to CodexMeter
 
-Thanks for helping improve CodexQuotaWidget. Small, focused pull requests are
-easier to review and are encouraged.
+Thanks for helping keep CodexMeter small, stable, and private.
 
-## Development requirements
+## Scope
 
-- macOS 13+ or Windows 10/11
-- Node.js 20 or later and npm
-- Current stable Rust toolchain
-- Platform prerequisites for Tauri 2
-- Xcode 16+ with Swift 6 tooling when changing the native macOS implementation
-- Codex or the ChatGPT desktop app for live integration testing
+Changes should preserve the project's status-tool focus. Prefer clear 5 Hour/Weekly/reset-time behavior over dashboards, forecasts, history, or social features. Do not add screenshot capture, OCR, browser-cookie access, token handling, remote quota proxies, telemetry, or persisted quota samples.
 
-## Set up the project
+## Development setup
+
+Install Node.js 20 or newer, Rust stable, the platform's Tauri prerequisites, and a working Codex CLI. On Windows, use Windows 10/11 x64 with WebView2. On macOS, install Xcode Command Line Tools; full Xcode is required for some packaging and signing tasks.
 
 ```bash
-git clone https://github.com/changzhengithub/codex-quota-tool.git
-cd codex-quota-tool
 cd apps/desktop-tauri
 npm ci
 npm run build
-cargo test --manifest-path src-tauri/Cargo.toml
-```
-
-Run the cross-platform desktop app in development mode:
-
-```bash
-npm run tauri dev
-```
-
-Open `Package.swift` in Xcode only when working on the retained native SwiftUI
-implementation. Its local bundle script is `./Scripts/build-app.sh`.
-
-## Tests
-
-Run deterministic tests before submitting a pull request:
-
-```bash
-cd apps/desktop-tauri
-npm run build
 cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
-cargo test --manifest-path src-tauri/Cargo.toml
-
-cd ../..
-swift test
+cargo test --locked --manifest-path src-tauri/Cargo.toml
 ```
 
-The live integration test is opt-in because it uses the current machine's
-signed-in Codex account:
+Use `npm run package:mac` or `npm run package:windows` when you need a local package in the repository-root `artifacts/` directory.
 
-```bash
-LIVE_CODEX_TEST=1 swift test --filter CodexAppServerIntegrationTests
-```
-
-Never enable the live test in public CI, and never add credentials or Codex
-session files to a fixture.
-
-## Protocol changes
-
-`codex app-server` is experimental. When its response shape changes:
-
-1. Keep new server fields optional unless they are guaranteed by the stable protocol.
-2. Update both Rust and Swift models plus their decoding fixtures when applicable.
-3. Preserve the full-snapshot refetch after sparse `account/rateLimits/updated` notifications.
-4. Mention the tested Codex version in the pull request.
+The live account integration is intentionally not part of normal tests. Use synthetic fixtures for parsing tests. If a local live test is necessary, do not record its raw output and do not commit account data.
 
 ## Pull requests
 
-- Explain the user-visible problem and the chosen behavior.
-- Add or update tests for parsing and state changes.
-- Keep unrelated formatting and refactors out of the change.
-- Confirm the Tauri frontend build and Rust tests pass; run Swift tests when changing shared behavior or Swift code.
-- Do not commit `.app`, `.zip`, `.build`, signing keys, or notarization credentials.
+- Keep changes focused and explain user-visible behavior.
+- Add tests for quota parsing, missing-window behavior, reconnect logic, and platform-specific code where practical.
+- Run the frontend build, Rust formatter, and Rust tests.
+- Update both English and Chinese documentation for user-visible changes.
+- Do not commit `node_modules`, `target`, packaged applications, credentials, raw responses, or local settings.
+- Preserve the original MIT license notice and project attribution.
 
-By contributing, you agree that your contribution is licensed under the MIT
-License in this repository.
+## Release changes
+
+Version changes must remain synchronized in `package.json`, `Cargo.toml`, `tauri.conf.json`, and the release tag. Release workflows should produce checksums for every binary artifact. Signing secrets belong in GitHub Actions secrets or a trusted signing service, never in the repository.

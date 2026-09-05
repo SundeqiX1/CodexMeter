@@ -1,15 +1,7 @@
-# Swift Package Manager
-.build/
-.swiftpm/xcode/xcuserdata/
-*.xcuserstate
-
-# Xcode
-DerivedData/
-*.xcworkspace/xcuserdata/
-*.xcodeproj/xcuserdata/
-
 # Packaged applications and release archives
 dist/
+artifacts/*
+!artifacts/README.md
 *.app
 *.dmg
 *.pkg

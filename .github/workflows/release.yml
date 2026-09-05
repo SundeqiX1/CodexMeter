@@ -1,0 +1,127 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build ${{ matrix.label }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: macOS arm64
+            runner: macos-14
+            target: aarch64-apple-darwin
+            arch: arm64
+            platform: macos
+            bundles: app,dmg
+          - label: macOS x64
+            runner: macos-14
+            target: x86_64-apple-darwin
+            arch: x64
+            platform: macos
+            bundles: app,dmg
+          - label: Windows x64
+            runner: windows-latest
+            target: x86_64-pc-windows-msvc
+            arch: x64
+            platform: windows
+            bundles: nsis
+
+    defaults:
+      run:
+        working-directory: apps/desktop-tauri
+
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: apps/desktop-tauri/package-lock.json
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: apps/desktop-tauri/src-tauri
+      - run: npm ci --no-audit --no-fund
+      - run: npm run build
+      - name: Verify tag matches application version
+        if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          test "${GITHUB_REF_NAME}" = "v${version}"
+      - name: Build Tauri bundles
+        shell: bash
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY || '-' }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: npm run tauri build -- --target "${{ matrix.target }}" --bundles "${{ matrix.bundles }}"
+      - name: Prepare macOS DMG, ZIP, and checksum
+        if: matrix.platform == 'macos'
+        shell: bash
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          output="src-tauri/target/${{ matrix.target }}/release/bundle"
+          mkdir -p artifacts
+          dmg="$(find "${output}/dmg" -name '*.dmg' -print -quit)"
+          app="$(find "${output}/macos" -name '*.app' -print -quit)"
+          test -n "${dmg}" && test -n "${app}"
+          cp "${dmg}" "artifacts/CodexMeter-macOS-${version}-${{ matrix.arch }}.dmg"
+          ditto -c -k --sequesterRsrc --keepParent "${app}" "artifacts/CodexMeter-macOS-${version}-${{ matrix.arch }}.zip"
+          cd artifacts
+          shasum -a 256 CodexMeter-* > "SHA256SUMS-macOS-${version}-${{ matrix.arch }}.txt"
+      - name: Prepare Windows installer, portable ZIP, and checksum
+        if: matrix.platform == 'windows'
+        shell: pwsh
+        run: |
+          $version = node -p "require('./package.json').version"
+          $output = "src-tauri/target/${{ matrix.target }}/release"
+          New-Item -ItemType Directory -Force artifacts | Out-Null
+          $installer = Get-ChildItem "$output/bundle/nsis/*.exe" | Select-Object -First 1
+          if (-not $installer) { throw "NSIS installer not found" }
+          Copy-Item $installer.FullName "artifacts/CodexMeter-Windows-Setup-$version-x64.exe"
+          $portable = New-Item -ItemType Directory -Force "$env:RUNNER_TEMP/CodexMeter"
+          Copy-Item "$output/codexmeter.exe" "$portable/CodexMeter.exe"
+          Copy-Item ../../README.md,../../README.zh-CN.md,../../LICENSE $portable
+          Compress-Archive -Path "$portable/*" -DestinationPath "artifacts/CodexMeter-Windows-Portable-$version-x64.zip"
+          Get-ChildItem artifacts/CodexMeter-* | Get-FileHash -Algorithm SHA256 | ForEach-Object {
+            "$($_.Hash.ToLower())  $($_.Path | Split-Path -Leaf)"
+          } | Set-Content "artifacts/SHA256SUMS-Windows-$version-x64.txt"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: codexmeter-${{ matrix.platform }}-${{ matrix.arch }}
+          path: apps/desktop-tauri/artifacts/*
+          if-no-files-found: error
+
+  publish:
+    name: Publish GitHub Release
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: codexmeter-*
+          path: release-assets
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: release-assets/*

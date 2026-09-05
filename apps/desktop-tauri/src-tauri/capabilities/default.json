@@ -1,13 +1,15 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Permissions for the Codex quota widget window",
-  "windows": ["main"],
+  "description": "Narrow permissions for CodexMeter local windows",
+  "windows": ["panel", "widget"],
   "permissions": [
     "core:default",
     "core:event:default",
     "core:window:default",
+    "core:window:allow-hide",
+    "core:window:allow-set-size",
+    "core:window:allow-start-dragging",
     "autostart:default"
   ]
 }
-
