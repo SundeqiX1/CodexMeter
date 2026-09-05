@@ -4,6 +4,11 @@ All notable changes are documented here. The project follows Semantic Versioning
 
 ## [Unreleased]
 
+### Fixed
+
+- Apply the missing-window visibility preference consistently to the floating widget.
+- Make widget details a deterministic click-to-expand/click-to-collapse interaction without opening the panel or Settings.
+
 ## [0.1.0-preview.1] - 2026-09-06
 
 ### Added

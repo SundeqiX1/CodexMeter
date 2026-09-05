@@ -47,28 +47,48 @@ function Widget() {
   const copy = translations[language];
   const fiveHour = useMemo(() => windowForDuration(state.snapshot, 300), [state.snapshot]);
   const weekly = useMemo(() => windowForDuration(state.snapshot, 10_080), [state.snapshot]);
+  const hideMissing = state.settings.hideMissingWindows;
+  const showFiveHour = Boolean(fiveHour) || !hideMissing;
+  const showWeekly = Boolean(weekly) || !hideMissing;
+  const visibleWindowCount = Number(showFiveHour) + Number(showWeekly);
+  const detailsOpen = visibleWindowCount > 0 && expanded;
 
-  const resize = async (nextExpanded: boolean) => {
-    setExpanded(nextExpanded);
-    await currentWindow.setSize(new LogicalSize(224, nextExpanded ? 118 : 48));
-  };
+  useEffect(() => {
+    void currentWindow.setSize(new LogicalSize(224, detailsOpen ? 118 : 48));
+  }, [detailsOpen]);
 
   return (
     <main
-      className={`widget ${expanded ? "widget--expanded" : ""}`}
-      onPointerEnter={() => void resize(true)}
-      onPointerLeave={() => void resize(false)}
+      className={`widget ${detailsOpen ? "widget--expanded" : ""}`}
+      onClick={(event) => {
+        if ((event.target as HTMLElement).closest("button")) return;
+        event.stopPropagation();
+        if (visibleWindowCount > 0) setExpanded((current) => !current);
+      }}
+      onContextMenu={(event) => event.preventDefault()}
     >
       <div className="widget__card">
         <div className="widget__summary">
           <i className={`status-dot status-dot--${state.connection.status}`} data-tauri-drag-region />
-          <strong data-tauri-drag-region>5h {percent(fiveHour)}</strong>
-          <span data-tauri-drag-region>W {percent(weekly)}</span>
-          <button aria-label={copy.closeWidget} onClick={() => void setWidgetVisible(false)}>×</button>
+          {showFiveHour ? <strong data-tauri-drag-region>5h {percent(fiveHour)}</strong> : null}
+          {showWeekly ? <span data-tauri-drag-region>W {percent(weekly)}</span> : null}
+          {visibleWindowCount === 0 ? <strong data-tauri-drag-region>{copy.noData}</strong> : null}
+          <button
+            aria-label={copy.closeWidget}
+            onClick={(event) => {
+              event.stopPropagation();
+              setExpanded(false);
+              void setWidgetVisible(false);
+            }}
+          >×</button>
         </div>
-        <div className="widget__details" aria-hidden={!expanded} data-tauri-drag-region>
-          <span>5h <b>{percent(fiveHour)}</b><small>{fiveHour ? `${copy.reset} ${resetLabel(fiveHour.resetsAt, language, copy.unknown)}` : copy.noData}</small></span>
-          <span>{copy.weekly} <b>{percent(weekly)}</b><small>{weekly ? `${copy.reset} ${resetLabel(weekly.resetsAt, language, copy.unknown)}` : copy.noData}</small></span>
+        <div
+          className={`widget__details ${visibleWindowCount === 1 ? "widget__details--single" : ""}`}
+          aria-hidden={!detailsOpen}
+          data-tauri-drag-region
+        >
+          {showFiveHour ? <span>5h <b>{percent(fiveHour)}</b><small>{fiveHour ? `${copy.reset} ${resetLabel(fiveHour.resetsAt, language, copy.unknown)}` : copy.noData}</small></span> : null}
+          {showWeekly ? <span>{copy.weekly} <b>{percent(weekly)}</b><small>{weekly ? `${copy.reset} ${resetLabel(weekly.resetsAt, language, copy.unknown)}` : copy.noData}</small></span> : null}
         </div>
       </div>
     </main>

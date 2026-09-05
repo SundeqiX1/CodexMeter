@@ -114,6 +114,7 @@ summary { cursor: pointer; }
 .widget__summary span { color: var(--muted); font-weight: 650; }
 .widget__summary button { width: 22px; height: 22px; margin-left: auto; font-size: 16px; }
 .widget__details { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; height: 0; padding: 0 11px; overflow: hidden; opacity: 0; border-top: 1px solid transparent; transition: opacity .12s ease; }
+.widget__details--single { grid-template-columns: 1fr; }
 .widget--expanded .widget__details { height: 66px; padding-top: 9px; opacity: 1; border-top-color: var(--line); }
 .widget__details span { color: var(--muted); font-size: 9px; }
 .widget__details b, .widget__details small { display: block; }
