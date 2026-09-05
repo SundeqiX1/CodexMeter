@@ -1,5 +1,5 @@
 name: Feature request
-description: Suggest an improvement for CodexQuotaWidget.
+description: Suggest an improvement for CodexMeter.
 title: "[Feature]: "
 body:
   - type: textarea

@@ -1,11 +1,11 @@
 name: Bug report
-description: Report a reproducible problem with CodexQuotaWidget.
+description: Report a reproducible problem with CodexMeter.
 title: "[Bug]: "
 body:
   - type: markdown
     attributes:
       value: |
-        Thanks for helping improve CodexQuotaWidget. Please remove account details, tokens, and other private data from logs before submitting.
+        Thanks for helping improve CodexMeter. Please remove account details, tokens, and other private data from logs before submitting.
 
   - type: dropdown
     id: operating-system

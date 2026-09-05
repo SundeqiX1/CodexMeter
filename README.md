@@ -4,6 +4,8 @@ CodexMeter is a small, private, cross-platform menu bar and system tray monitor 
 
 > This is an independent community project and is not affiliated with or endorsed by OpenAI.
 
+> **Release status:** `0.1.0` is a preview release. The parser, reconnect behavior, frontend build, Rust tests, and native macOS arm64 packaging are verified. Windows and macOS Intel packages are produced by GitHub Actions and must pass installation smoke tests before the project is described as stable. Codex App Server is an experimental upstream interface and may change between Codex versions.
+
 [简体中文](README.zh-CN.md)
 
 ## Highlights
@@ -54,13 +56,25 @@ Public macOS releases should be Developer ID signed and notarized, and public Wi
 
 ## Requirements
 
-- A working `codex` executable and an existing ChatGPT-managed Codex sign-in.
+### To use a packaged release
+
+- macOS 13+ or Windows 10/11 x64.
+- A local, signed-in Codex installation that exposes an App Server-capable `codex` executable.
+- WebView2 on Windows; it is normally already present on Windows 10/11.
+
+Packaged releases do **not** require Node.js, Rust, Visual Studio, or Microsoft C++ Build Tools. Those are development dependencies only.
+
+On macOS, CodexMeter checks the Codex executable bundled with the ChatGPT or Codex desktop app before searching `PATH`, so the desktop app can be sufficient. On Windows, the current preview requires `codex.exe`, `codex.cmd`, or `codex.bat` in `PATH` or selected explicitly in Settings. Installing a Windows desktop app is sufficient only when it exposes an App Server-capable executable that CodexMeter can select.
+
+### To build from source
+
 - Node.js 20+ and Rust stable when building from source.
-- Microsoft C++ Build Tools and Microsoft Edge WebView2 on Windows (WebView2 is normally already installed on Windows 10/11).
+- Microsoft C++ Build Tools and Microsoft Edge WebView2 on Windows.
+- Xcode Command Line Tools on macOS; full Xcode may be required for signing and packaging.
 
 CodexMeter auto-detects the executable in `PATH` and the standard macOS ChatGPT/Codex application locations. A custom path can be selected in Settings. `CODEX_BINARY` remains available as an environment override; Windows users may explicitly opt into a WSL fallback with `CODEX_USE_WSL=1`.
 
-For official Codex installation and sign-in instructions, see the [Codex CLI documentation](https://learn.chatgpt.com/docs/codex/cli). Windows source builds also need the dependencies listed in the [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/).
+For official Codex installation and sign-in instructions, see the [official Codex CLI documentation](https://developers.openai.com/codex/cli). The local JSONL protocol and `account/rateLimits/read` method are documented in the [official Codex App Server documentation](https://developers.openai.com/codex/app-server). Windows source builds also need the dependencies listed in the [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/).
 
 ## Install and use
 

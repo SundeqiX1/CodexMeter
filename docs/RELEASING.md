@@ -1,5 +1,7 @@
 # Releasing
 
+Version `0.1.0` is a preview. Do not mark a release stable until the generated Windows x64, macOS arm64, and macOS x64 artifacts have each passed an installation and launch smoke test on matching hardware or a trusted virtual machine. The application also depends on the experimental Codex App Server interface, so every release must be tested against the supported Codex CLI version range.
+
 ## Before tagging
 
 1. Synchronize the version in `apps/desktop-tauri/package.json`, `package-lock.json`, `src-tauri/Cargo.toml`, and `src-tauri/tauri.conf.json`.

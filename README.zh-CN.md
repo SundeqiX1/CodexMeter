@@ -4,6 +4,18 @@ CodexMeter 是面向 macOS 与 Windows 的轻量 Codex 额度状态工具。它�
 
 > This is an independent community project and is not affiliated with or endorsed by OpenAI.
 
+> **版本状态：** `0.1.0` 是预览版。额度解析、断线重试、前端构建、Rust 测试以及 macOS Apple Silicon 原生打包已经验证；Windows 与 macOS Intel 安装包由 GitHub Actions 生成，完成对应真机安装冒烟测试后再标记为稳定版。Codex App Server 目前仍是上游实验性接口，未来 Codex 版本可能调整协议。
+
+## 普通用户需要安装什么
+
+- macOS 13+，或 Windows 10/11 x64；
+- 本机已有登录状态、且能提供 App Server 的 Codex 可执行程序；
+- Windows 需要 WebView2，Windows 10/11 通常已经自带。
+
+下载安装包的普通用户**不需要**安装 Node.js、Rust、Visual Studio 或 Microsoft C++ Build Tools；这些仅供从源码构建的开发者使用。
+
+macOS 会优先查找 ChatGPT/Codex 桌面应用内部自带的 `codex`，所以只安装桌面应用也可能直接使用。Windows 预览版目前需要在 `PATH` 中找到 `codex.exe`、`codex.cmd` 或 `codex.bat`，也可以在设置里手动选择完整路径。仅安装 Windows 桌面应用是否足够，取决于它是否提供可被选择、且支持 App Server 的 Codex 可执行程序。
+
 ## 使用方式
 
 启动后，macOS 菜单栏会显示 5 小时与周额度；Windows 用户可以左键单击托盘图标打开面板。面板提供手动刷新、悬浮 Widget、开机启动和设置入口。关闭面板或 Widget 不会退出后台托盘程序。
@@ -27,7 +39,7 @@ CodexMeter 是面向 macOS 与 Windows 的轻量 Codex 额度状态工具。它�
 2. 确保原生 Windows `codex` 命令已经登录并位于 `PATH`。如果安装位置不在 `PATH`，请在 Settings 填写 `codex.exe`、`codex.cmd` 或 `codex.bat` 的完整路径。
 3. CodexMeter 会驻留在通知区域；Windows 可能把它收进“隐藏的图标”。左键托盘图标打开或隐藏面板，右键可选择 **Show Widget**、**Refresh**、**Launch at Startup**、**Settings** 和 **Quit CodexMeter**。
 
-Codex 官方安装和登录方法见 [Codex CLI 文档](https://learn.chatgpt.com/docs/codex/cli)。当前 Mac 可以直接产出 macOS 包；Windows 安装包需要在 Windows 上构建，或在项目推送到 GitHub 后由 Release 工作流构建。
+Codex 官方安装和登录方法见[官方 Codex CLI 文档](https://developers.openai.com/codex/cli)，本项目使用的本地 JSONL 协议及 `account/rateLimits/read` 见[官方 Codex App Server 文档](https://developers.openai.com/codex/app-server)。当前 Mac 可以直接产出 macOS 包；Windows 安装包需要在 Windows 上构建，或在项目推送到 GitHub 后由 Release 工作流构建。
 
 ### 开发模式运行
 
