@@ -111,9 +111,15 @@ jobs:
           Copy-Item "$output/codexmeter.exe" "$portable/CodexMeter.exe"
           Copy-Item ../../README.md,../../README.zh-CN.md,../../LICENSE $portable
           Compress-Archive -Path "$portable/*" -DestinationPath "artifacts/CodexMeter-Windows-Portable-$version-x64.zip"
-          Get-ChildItem artifacts/CodexMeter-* | Get-FileHash -Algorithm SHA256 | ForEach-Object {
+          $checksums = Get-ChildItem artifacts/CodexMeter-* | Get-FileHash -Algorithm SHA256 | ForEach-Object {
             "$($_.Hash.ToLower())  $($_.Path | Split-Path -Leaf)"
-          } | Set-Content "artifacts/SHA256SUMS-Windows-$version-x64.txt"
+          }
+          $checksumPath = Join-Path (Get-Location) "artifacts/SHA256SUMS-Windows-$version-x64.txt"
+          [System.IO.File]::WriteAllText(
+            $checksumPath,
+            ($checksums -join "`n") + "`n",
+            [System.Text.UTF8Encoding]::new($false)
+          )
       - uses: actions/upload-artifact@v7
         with:
           name: codexmeter-${{ matrix.platform }}-${{ matrix.arch }}
