@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuota } from "./hooks/useQuota";
 import { resolveLanguage, translations } from "./i18n";
 import type { Translation } from "./i18n";
-import { remainingPercent, resetLabel, windowForDuration } from "./lib/quota";
+import { remainingPercent, resetLabel, subscriptionLabel, windowForDuration } from "./lib/quota";
 import type { AppSettings, RateLimitWindow, ResolvedLanguage } from "./types";
 
 const currentWindow = getCurrentWindow();
@@ -194,6 +194,7 @@ function Panel() {
   const copy = translations[language];
   const fiveHour = useMemo(() => windowForDuration(state.snapshot, 300), [state.snapshot]);
   const weekly = useMemo(() => windowForDuration(state.snapshot, 10_080), [state.snapshot]);
+  const subscription = useMemo(() => subscriptionLabel(state.snapshot), [state.snapshot]);
   const hideMissing = state.settings.hideMissingWindows;
 
   useEffect(() => {
@@ -224,8 +225,11 @@ function Panel() {
       <div className="panel">
         <header className="panel__header">
           <div data-tauri-drag-region>
-            <span>CODEXMETER</span>
-            <h1>{copy.codexUsage}</h1>
+            <span className="panel__brand">CODEXMETER</span>
+            <div className="panel__title-row" data-tauri-drag-region>
+              <h1>{copy.codexUsage}</h1>
+              {subscription ? <span className="plan-badge">{subscription}</span> : null}
+            </div>
           </div>
           <button aria-label={copy.closePanel} onClick={close}>×</button>
         </header>
@@ -278,6 +282,7 @@ function Panel() {
             <details>
               <summary>{copy.details}</summary>
               <div className="details-grid">
+                <span>{copy.subscription}</span><b>{subscription ?? "--"}</b>
                 <span>{copy.resetCredits}</span><b>{state.snapshot?.rateLimitResetCredits?.availableCount ?? "--"}</b>
                 <span>{copy.dataSource}</span><b>{copy.localAppServer}</b>
               </div>

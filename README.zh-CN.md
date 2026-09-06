@@ -73,6 +73,8 @@ Windows 还需要 Microsoft C++ Build Tools 与 Edge WebView2，详见 [Tauri �
 
 解析逻辑不依赖套餐名称，因此 Plus、Pro 5x、Pro 20x、Business 以及未来套餐使用同一套规则。只要 `rateLimitsByLimitId.codex` 或旧版 `rateLimits` 返回了窗口，就可以显示。
 
+如果 App Server 返回 `planType`，主面板标题旁会显示 **Plus**、**Pro 5×** 或 **Pro 20×** 等订阅徽标。套餐只按服务端明确字段展示并保留在内存中，不会根据额度百分比推测；未来出现未知值时会显示整理后的原始名称，而不会误判成现有套餐。
+
 如果 Pro 账户当前只返回 Weekly：
 
 - 默认显示 `5h -- · W 43%`；

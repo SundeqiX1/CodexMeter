@@ -48,8 +48,15 @@ button { color: inherit; }
 }
 
 .panel__header { display: flex; align-items: center; justify-content: space-between; min-height: 50px; }
-.panel__header span { color: var(--accent); font-size: 9px; font-weight: 750; letter-spacing: .16em; }
+.panel__brand { color: var(--accent); font-size: 9px; font-weight: 750; letter-spacing: .16em; }
+.panel__title-row { display: flex; align-items: center; gap: 8px; margin-top: 3px; }
 .panel__header h1 { margin: 3px 0 0; font-size: 20px; font-weight: 680; letter-spacing: -.02em; }
+.panel__title-row h1 { margin: 0; }
+.plan-badge {
+  padding: 3px 6px; border: 1px solid color-mix(in srgb, var(--accent) 28%, transparent); border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 10%, transparent); color: var(--accent); font-size: 9px; font-weight: 720;
+  letter-spacing: .01em; white-space: nowrap;
+}
 .panel__header button, .widget__summary button {
   width: 28px; height: 28px; padding: 0; border: 0; border-radius: 8px;
   background: transparent; color: var(--muted); cursor: pointer; font-size: 21px; line-height: 1;

@@ -13,6 +13,7 @@ export interface RateLimitWindow {
 }
 
 export interface RateLimitSnapshot {
+  planType?: string | null;
   primary?: RateLimitWindow | null;
   secondary?: RateLimitWindow | null;
 }

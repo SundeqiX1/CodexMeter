@@ -18,6 +18,35 @@ export const codexLimit = (envelope?: RateLimitsEnvelope | null): RateLimitSnaps
   return envelope.rateLimitsByLimitId?.codex ?? envelope.rateLimits ?? null;
 };
 
+const planLabels: Record<string, string> = {
+  free: "Free",
+  go: "Go",
+  plus: "Plus",
+  prolite: "Pro 5×",
+  pro: "Pro 20×",
+  team: "Team",
+  self_serve_business_prolite: "Business · Pro 5×",
+  self_serve_business_usage_based: "Business · Usage-based",
+  business: "Business",
+  ent26: "Enterprise",
+  enterprise_cbp_automation: "Enterprise",
+  enterprise_cbp_usage_based: "Enterprise · Usage-based",
+  enterprise: "Enterprise",
+  edu: "Edu",
+  edu_plus: "Edu Plus",
+  edu_pro: "Edu Pro",
+};
+
+export const subscriptionLabel = (envelope?: RateLimitsEnvelope | null): string | null => {
+  const raw = codexLimit(envelope)?.planType?.trim().toLowerCase();
+  if (!raw || raw === "unknown") return null;
+  return planLabels[raw] ?? raw
+    .split(/[_-]+/)
+    .filter(Boolean)
+    .map((part) => part[0]?.toUpperCase() + part.slice(1))
+    .join(" ");
+};
+
 export const windowForDuration = (
   envelope: RateLimitsEnvelope | null | undefined,
   minutes: number,

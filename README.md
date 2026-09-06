@@ -48,6 +48,8 @@ Both `rateLimitsByLimitId.codex` and the legacy `rateLimits` response are accept
 
 This behavior is plan-agnostic. Plus, Pro 5x, Pro 20x, Business, and future plans use the same parser: CodexMeter displays only the windows returned for `codex`. A weekly-only Pro response therefore renders `5h -- · W …` by default, or only `W …` when **Hide windows not reported by the server** is enabled. Plan names and multipliers are never used to manufacture a limit. OpenAI's current plan documentation notes that Pro offers 5x or 20x usage and that weekly limits may also apply, while the actual windows available to an account remain server-controlled; see [OpenAI Codex pricing and usage limits](https://learn.chatgpt.com/docs/pricing).
 
+When the App Server reports `planType`, the main panel shows a small subscription badge such as **Plus**, **Pro 5×**, or **Pro 20×**. The value remains in memory and is never inferred from quota percentages. Unknown future values are displayed in a readable form instead of being silently mapped to an existing tier.
+
 ## Supported targets
 
 | Platform | Target | Packaging |

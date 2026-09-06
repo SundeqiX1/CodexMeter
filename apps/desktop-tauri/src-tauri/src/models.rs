@@ -16,6 +16,8 @@ pub struct RateLimitsEnvelope {
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RateLimitSnapshot {
+    #[serde(default)]
+    pub plan_type: Option<String>,
     pub primary: Option<RateLimitWindow>,
     pub secondary: Option<RateLimitWindow>,
 }
@@ -156,6 +158,7 @@ mod tests {
 
         let legacy = decoded.rate_limits.as_ref().unwrap();
         assert_eq!(legacy.primary.as_ref().unwrap().remaining_percent(), 54.0);
+        assert_eq!(legacy.plan_type.as_deref(), Some("prolite"));
         assert_eq!(decoded.rate_limit_reset_credits.unwrap().available_count, 1);
     }
 
