@@ -102,12 +102,14 @@ function SettingsView({
   onCancel,
   onSave,
   copy,
+  platform,
 }: {
   value: AppSettings;
   message: string | null;
   onCancel: () => void;
   onSave: (settings: AppSettings) => void;
   copy: Translation;
+  platform: string;
 }) {
   const [draft, setDraft] = useState(value);
   useEffect(() => setDraft(value), [value]);
@@ -144,14 +146,16 @@ function SettingsView({
           spellCheck={false}
         />
       </label>
-      <label className="check-row">
-        <input
-          type="checkbox"
-          checked={draft.compactMenuBar}
-          onChange={(event) => setDraft({ ...draft, compactMenuBar: event.target.checked })}
-        />
-        {copy.compactMenuBar}
-      </label>
+      {platform === "macos" ? (
+        <label className="check-row">
+          <input
+            type="checkbox"
+            checked={draft.compactMenuBar}
+            onChange={(event) => setDraft({ ...draft, compactMenuBar: event.target.checked })}
+          />
+          {copy.compactMenuBar}
+        </label>
+      ) : null}
       <label className="check-row">
         <input
           type="checkbox"
@@ -190,12 +194,22 @@ function Panel() {
     setLaunchAtLoginEnabled,
   } = useQuota();
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const language = resolveLanguage(state.settings.language);
   const copy = translations[language];
   const fiveHour = useMemo(() => windowForDuration(state.snapshot, 300), [state.snapshot]);
   const weekly = useMemo(() => windowForDuration(state.snapshot, 10_080), [state.snapshot]);
   const subscription = useMemo(() => subscriptionLabel(state.snapshot), [state.snapshot]);
   const hideMissing = state.settings.hideMissingWindows;
+  const visibleQuotaCount = Number(Boolean(fiveHour) || !hideMissing) + Number(Boolean(weekly) || !hideMissing);
+
+  useEffect(() => {
+    const normalHeight = Math.max(
+      388,
+      340 + visibleQuotaCount * 98 + (detailsOpen ? 50 : 0) + (state.connection.message ? 36 : 0),
+    );
+    void currentWindow.setSize(new LogicalSize(340, settingsOpen ? 488 : normalHeight));
+  }, [detailsOpen, settingsOpen, state.connection.message, visibleQuotaCount]);
 
   useEffect(() => {
     let unlisten: (() => void) | undefined;
@@ -221,9 +235,17 @@ function Panel() {
   const close = () => void currentWindow.hide();
 
   return (
-    <main className="panel-shell">
+    <main className={`panel-shell panel-shell--${state.platform}`}>
       <div className="panel">
-        <header className="panel__header">
+        <header
+          className="panel__header"
+          data-tauri-drag-region
+          onPointerDown={(event) => {
+            if (event.button !== 0 || (event.target as HTMLElement).closest("button")) return;
+            void currentWindow.startDragging();
+          }}
+        >
+          <i className="panel__drag-handle" data-tauri-drag-region />
           <div data-tauri-drag-region>
             <span className="panel__brand">CODEXMETER</span>
             <div className="panel__title-row" data-tauri-drag-region>
@@ -239,6 +261,7 @@ function Panel() {
             value={state.settings}
             message={settingsMessage}
             copy={copy}
+            platform={state.platform}
             onCancel={() => setSettingsOpen(false)}
             onSave={async (settings) => {
               if (await saveSettings(settings)) setSettingsOpen(false);
@@ -279,7 +302,10 @@ function Panel() {
               </button>
             </div>
 
-            <details>
+            <details
+              open={detailsOpen}
+              onToggle={(event) => setDetailsOpen(event.currentTarget.open)}
+            >
               <summary>{copy.details}</summary>
               <div className="details-grid">
                 <span>{copy.subscription}</span><b>{subscription ?? "--"}</b>

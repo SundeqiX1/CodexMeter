@@ -98,7 +98,7 @@ The `×` in the quota panel hides the panel. The `×` in the widget hides only t
 
 1. Run `CodexMeter-Windows-Setup-<version>-x64.exe`, or extract the portable ZIP and launch `CodexMeter.exe`.
 2. Make sure the native Windows `codex` command is available in `PATH`. If it is installed somewhere else, enter the full path to `codex.exe`, `codex.cmd`, or `codex.bat` in Settings.
-3. Find CodexMeter in the notification area; Windows may place it behind the hidden-icons arrow. Left-click the tray icon to open or hide the panel. Right-click it for **Show Widget**, **Refresh**, **Launch at Startup**, **Settings**, and **Quit CodexMeter**.
+3. Find CodexMeter in the notification area; Windows may place it behind the hidden-icons arrow. Left-click the tray icon to open or hide the panel. Drag the handle or empty area at the top of the frameless panel to move it. Right-click the tray icon for **Show Widget**, **Refresh**, **Launch at Startup**, **Settings**, and **Quit CodexMeter**.
 
 The current checkout can produce macOS packages on a Mac. Windows packages are built on Windows or by the release workflow after the repository is pushed to GitHub.
 

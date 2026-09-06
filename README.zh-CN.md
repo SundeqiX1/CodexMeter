@@ -41,7 +41,7 @@ macOS 会优先查找 ChatGPT/Codex 桌面应用内部自带的 `codex`，所以
 
 1. 运行 `CodexMeter-Windows-Setup-<版本>-x64.exe`，或解压 portable ZIP 后运行 `CodexMeter.exe`。
 2. 确保原生 Windows `codex` 命令已经登录并位于 `PATH`。如果安装位置不在 `PATH`，请在 Settings 填写 `codex.exe`、`codex.cmd` 或 `codex.bat` 的完整路径。
-3. CodexMeter 会驻留在通知区域；Windows 可能把它收进“隐藏的图标”。左键托盘图标打开或隐藏面板，右键可选择 **Show Widget**、**Refresh**、**Launch at Startup**、**Settings** 和 **Quit CodexMeter**。
+3. CodexMeter 会驻留在通知区域；Windows 可能把它收进“隐藏的图标”。左键托盘图标打开或隐藏面板；按住面板顶部的短横把手或空白区域即可拖动。右键托盘图标可选择 **Show Widget**、**Refresh**、**Launch at Startup**、**Settings** 和 **Quit CodexMeter**。
 
 Codex 官方安装和登录方法见[官方 Codex CLI 文档](https://developers.openai.com/codex/cli)，本项目使用的本地 JSONL 协议及 `account/rateLimits/read` 见[官方 Codex App Server 文档](https://developers.openai.com/codex/app-server)。当前 Mac 可以直接产出 macOS 包；Windows 安装包需要在 Windows 上构建，或在项目推送到 GitHub 后由 Release 工作流构建。
 
