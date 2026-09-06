@@ -10,6 +10,7 @@ All notable changes are documented here. The project follows Semantic Versioning
 - Make widget details a deterministic click-to-expand/click-to-collapse interaction without opening the panel or Settings.
 - Shrink the floating widget automatically when only one quota window is visible.
 - Show the App Server-reported subscription tier in the main panel without persisting account metadata.
+- Prevent release builds from opening an extra console window on Windows.
 
 ## [0.1.0-preview.1] - 2026-09-06
 

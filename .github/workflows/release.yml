@@ -107,12 +107,20 @@ jobs:
         run: |
           $version = node -p "require('./package.json').version"
           $output = "src-tauri/target/${{ matrix.target }}/release"
+          $portableExe = "$output/codexmeter.exe"
+          $bytes = [System.IO.File]::ReadAllBytes($portableExe)
+          $peHeaderOffset = [BitConverter]::ToInt32($bytes, 0x3c)
+          $optionalHeaderOffset = $peHeaderOffset + 24
+          $subsystem = [BitConverter]::ToUInt16($bytes, $optionalHeaderOffset + 68)
+          if ($subsystem -ne 2) {
+            throw "Expected Windows GUI subsystem (2), found $subsystem. The release would open a console window."
+          }
           New-Item -ItemType Directory -Force artifacts | Out-Null
           $installer = Get-ChildItem "$output/bundle/nsis/*.exe" | Select-Object -First 1
           if (-not $installer) { throw "NSIS installer not found" }
           Copy-Item $installer.FullName "artifacts/CodexMeter-Windows-Setup-$version-x64.exe"
           $portable = New-Item -ItemType Directory -Force "$env:RUNNER_TEMP/CodexMeter"
-          Copy-Item "$output/codexmeter.exe" "$portable/CodexMeter.exe"
+          Copy-Item $portableExe "$portable/CodexMeter.exe"
           Copy-Item ../../README.md,../../README.zh-CN.md,../../LICENSE $portable
           Compress-Archive -Path "$portable/*" -DestinationPath "artifacts/CodexMeter-Windows-Portable-$version-x64.zip"
           $checksums = Get-ChildItem artifacts/CodexMeter-* | Get-FileHash -Algorithm SHA256 | ForEach-Object {
