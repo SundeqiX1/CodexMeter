@@ -35,7 +35,7 @@
         "title": "CodexMeter Widget",
         "width": 224,
         "height": 48,
-        "minWidth": 224,
+        "minWidth": 164,
         "minHeight": 48,
         "maxWidth": 224,
         "maxHeight": 118,

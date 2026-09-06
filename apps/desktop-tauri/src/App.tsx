@@ -52,10 +52,11 @@ function Widget() {
   const showWeekly = Boolean(weekly) || !hideMissing;
   const visibleWindowCount = Number(showFiveHour) + Number(showWeekly);
   const detailsOpen = visibleWindowCount > 0 && expanded;
+  const widgetWidth = visibleWindowCount > 1 ? 224 : 164;
 
   useEffect(() => {
-    void currentWindow.setSize(new LogicalSize(224, detailsOpen ? 118 : 48));
-  }, [detailsOpen]);
+    void currentWindow.setSize(new LogicalSize(widgetWidth, detailsOpen ? 118 : 48));
+  }, [detailsOpen, widgetWidth]);
 
   return (
     <main

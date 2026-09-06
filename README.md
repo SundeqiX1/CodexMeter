@@ -87,7 +87,7 @@ For official Codex installation and sign-in instructions, see the [official Code
 1. Open the architecture-matched DMG (`arm64` for Apple Silicon, `x64` for Intel), then drag CodexMeter to Applications. A development build can also be launched directly from `CodexMeter.app`.
 2. Start CodexMeter. If an unsigned preview is blocked, Control-click the app, choose **Open**, then confirm **Open**. Public releases should be signed and notarized.
 3. Click the `5h … · W …` title in the menu bar to open or hide the quota panel. CodexMeter runs as a menu-bar accessory and does not occupy the Dock.
-4. Turn on **Floating Widget** in the panel, choose it from the menu-bar context menu, or enable **Show floating widget** in Settings and save. Click the widget once to expand reset details and click it again to collapse them. Widget clicks never open the panel or Settings. The widget first appears in the center of the screen and remembers where you drag it.
+4. Turn on **Floating Widget** in the panel, choose it from the menu-bar context menu, or enable **Show floating widget** in Settings and save. Click the widget once to expand reset details and click it again to collapse them. Widget clicks never open the panel or Settings. Its width shrinks automatically when only one quota window is visible. The widget first appears in the center of the screen and remembers where you drag it.
 5. Open Settings and choose **Follow system**, **English**, or **Simplified Chinese**. The panel, widget, status labels, dates, and tray menu update together.
 
 The `×` in the quota panel hides the panel. The `×` in the widget hides only the widget. Neither action quits CodexMeter; use **Quit CodexMeter** from the panel or menu-bar menu to stop the process.
